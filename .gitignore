@@ -1,3 +1,5 @@
 node_modules
 .env
 /dist
+/src/assets/dev/*/test*.*
+/src/assets/test/*/test*.*

@@ -1,9 +1,9 @@
 /*
- * For a detailed explanation regarding each configuration property and type check, visit:
+ * For a detailed explanation regarding each configuration property, visit:
  * https://jestjs.io/docs/en/configuration.html
  */
 
-export default {
+module.exports = {
 	// All imported modules in your tests should be mocked automatically
 	// automock: false,
 
@@ -14,7 +14,7 @@ export default {
 	// cacheDirectory: "C:\\Users\\kteresz\\AppData\\Local\\Temp\\jest",
 
 	// Automatically clear mock calls and instances between every test
-	// clearMocks: false,
+	clearMocks: true,
 
 	// Indicates whether the coverage information should be collected while executing the test
 	// collectCoverage: false,
@@ -117,9 +117,7 @@ export default {
 	// rootDir: undefined,
 
 	// A list of paths to directories that Jest should use to search for files in
-	// roots: [
-	//   "<rootDir>"
-	// ],
+	roots: ['<rootDir>/dist'],
 
 	// Allows you to use a custom runner instead of Jest's default test runner
 	// runner: "jest-runner",
