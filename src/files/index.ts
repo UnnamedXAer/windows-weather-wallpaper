@@ -31,7 +31,10 @@ export async function ensurePathExists(dir: string) {
 	}
 }
 
-export function getAssetsPath(resourceName: 'images', fileName?: string) {
+export function getAssetsPath(
+	resourceName: 'images' | 'images-output' | 'fonts' | 'data',
+	fileName?: string
+) {
 	if (!resourceName) debugger;
 	if (fileName) {
 		return path.join(
