@@ -78,3 +78,10 @@ export interface ForecastWeather {
 	};
 	weatherData: WeatherData[];
 }
+
+export interface Settings {
+	dt: string;
+	defaultWallpaperPath?: string;
+	wallpaperCopyPath?: string;
+	location: Geolocation | null;
+}

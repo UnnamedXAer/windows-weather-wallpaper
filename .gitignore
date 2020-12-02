@@ -1,5 +1,12 @@
 node_modules
 .env
 /dist
-/src/assets/dev/*/test*.*
-/src/assets/test/*/test*.*
+
+/src/assets/dev/*
+/src/assets/prod/*
+
+/src/pc-settings
+
+yarn-error.log
+
+*.html

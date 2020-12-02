@@ -9,9 +9,9 @@ const consoleLog = (...args: any[]) => {
 
 	const now = Date.now();
 	var _args = Array.prototype.slice.call(args);
-	_args.unshift(`(${now - consoleLogTime} ms)`);
+	_args.unshift(`(${now - consoleLogTime} ms) ->`);
 	_args.unshift(new Date().toLocaleTimeString());
-	_args.unshift('WinWallWeather -> ');
+	_args.unshift('WinWallWeather: ');
 	console.log.apply(null, _args);
 	consoleLogTime = now;
 };

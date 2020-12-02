@@ -1,32 +1,22 @@
 require('dotenv').config();
-import Jimp from 'jimp';
-import wallpaper from 'wallpaper';
-import { getAssetsPath, readImage } from './files';
-import { formatDate } from './utils/formatDate';
-import { fetchCurrentWeather, fetchForecastWeather } from './utils/network';
+import { fetchWeatherData } from './api/api';
+import consoleLog from './utils/consoleLogger';
+import { setupSettings } from './settings';
+import { createWallpaper, saveWallPaper, setWallpaper } from './wallpaper/wallpaper';
 
-// readImage('test.png').then(console.log).catch(console.log);
+function run() {
+	return setupSettings()
+		.then((settings) => fetchWeatherData(settings.location))
+		.then((weatherData) => createWallpaper(weatherData))
+		.then((newWallpaper) => saveWallPaper(newWallpaper))
+		.then((newWallpaperPath) => setWallpaper(newWallpaperPath))
+		.catch((err) => {
+			consoleLog(err);
+		})
+		.finally(() => {
+			consoleLog('all done');
+			setTimeout(run, 1000 * 60 * 60 * 8);
+		});
+}
 
-wallpaper.get().then(console.log).catch(console.log);
-
-const dir = getAssetsPath('images', 'test.png');
-// (async () => {
-// 	try {
-// 		const res = await wallpaper.set(dir);
-// 		console.log('res', res);
-// 	} catch (err) {
-// 		console.log('err', err);
-// 	}
-// })();
-
-// (async () => {
-// 	const image = (await Jimp.read(dir)).clone();
-// 	const fontPath = getAssetsPath('fonts', 'Retron2000.ttf.fnt');
-// 	const font = await Jimp.loadFont(fontPath);
-
-// 	image.print(font, 50, 50, 'Hello John');
-// 	await image.writeAsync(
-// 		getAssetsPath('images-output', 'test' + formatDate(new Date()) + '.png')
-// 	);
-// })();
-fetchForecastWeather();
+run();

@@ -1,22 +1,30 @@
 import axios from 'axios';
 import { readFileSync } from 'fs';
-import { readFile } from 'fs';
 import { config } from '../config';
 import emitter from '../events/emitter';
 import { NO_LOCATION } from '../events/eventsTypes';
 import { getAssetsPath } from '../files';
-import consoleLog from '../logger/consoleLogger';
+import consoleLog from '../utils/consoleLogger';
 import { CurrentWeather, ForecastWeather, Geolocation } from '../types/types';
-import { formatDate } from './formatDate';
+import { formatDate } from '../utils/formatDate';
 
-export const fetchCurrentWeather = async () => {
-	const loc = await fetchMyGeolocation();
-	consoleLog(loc);
+export const fetchWeatherData = async (loc: Geolocation | null) => {
 	if (loc === null) {
-		emitter.emit(NO_LOCATION, 'Location is null');
-		return;
+		emitter.emit(
+			NO_LOCATION,
+			'Unable to fetch weather data because location is null.'
+		);
+		return null;
 	}
+	const weatherData = await Promise.all([
+		fetchCurrentWeather(loc),
+		fetchForecastWeather(loc)
+	]);
 
+	return weatherData;
+};
+
+export const fetchCurrentWeather = async (loc: Geolocation) => {
 	const payload = {
 		provider: 'openweathermap',
 		queryParams: {
@@ -35,29 +43,12 @@ export const fetchCurrentWeather = async () => {
 	try {
 		consoleLog(formatDate(Date.now()));
 		if (config.isDev) {
-			return {
-				weatherData: {
-					dt: 1606831101000,
-					imgName: '04d',
-					temperature: { main: 0.39, feelsLike: -6.37, min: 0, max: 0.56 },
-					pressure: 1022,
-					humidity: 93,
-					wind: { speed: 6.7, deg: 110 },
-					time: 1606831101000,
-					sunrise: 1606802957000,
-					sunset: 1606833185000,
-					visibility: 10000,
-					description: 'overcast clouds',
-					shortDescription: 'Clouds',
-					clouds: 90
-				},
-				location: {
-					id: 761968,
-					city: 'Pobitno',
-					latitude: 50.03,
-					longitude: 22.04
-				}
-			} as CurrentWeather;
+			const currentWeather = JSON.parse(
+				readFileSync(
+					getAssetsPath('data', 'current-weather-example-1.json')
+				).toString()
+			);
+			return currentWeather as CurrentWeather;
 		}
 		const { data } = await axios.post(url, payload);
 		return data as CurrentWeather;
@@ -67,14 +58,7 @@ export const fetchCurrentWeather = async () => {
 	}
 };
 
-export const fetchForecastWeather = async () => {
-	const loc = await fetchMyGeolocation();
-	consoleLog(loc);
-	if (loc === null) {
-		emitter.emit(NO_LOCATION, 'Location is null');
-		return;
-	}
-
+export const fetchForecastWeather = async (loc: Geolocation) => {
 	const payload = {
 		provider: 'openweathermap',
 		queryParams: {
@@ -94,7 +78,9 @@ export const fetchForecastWeather = async () => {
 		consoleLog(formatDate(Date.now()));
 		if (config.isDev) {
 			const forecastData = JSON.parse(
-				readFileSync(getAssetsPath('data', 'forecast-example-1.json')).toString()
+				readFileSync(
+					getAssetsPath('data', 'forecast-weather-example-1.json')
+				).toString()
 			);
 			return forecastData as ForecastWeather;
 		}
@@ -106,19 +92,13 @@ export const fetchForecastWeather = async () => {
 	}
 };
 
-const fetchMyGeolocation = async () => {
+export const fetchMyGeolocation = async () => {
 	try {
 		if (config.isDev) {
-			return {
-				country: 'PL',
-				region: 'Subcarpathian',
-				city: 'Rzeszów (Nowe Miasto)',
-				lat: 50.0324,
-				lng: 22.0418,
-				postalCode: '35-615',
-				timezone: '+01:00',
-				geonameId: 759734
-			} as Geolocation;
+			const geolocation = JSON.parse(
+				readFileSync(getAssetsPath('data', 'location-example-1.json')).toString()
+			);
+			return geolocation as Geolocation;
 		}
 		const url = config.locationApiUrl;
 		const { data } = await axios.get(url, {});
