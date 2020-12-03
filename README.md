@@ -1,15 +1,14 @@
 ## TeKam Windows Weather Wallpaper
 ------
 
-### The tool that sets periodically new wallpaper with current weather.
+### The tool that periodically updates the windows wallpaper with current weather info.
 
-### :memo: Implementation list
+### :memo: Implementation explanation list
 
-- [x] Prepare project setup.
-- [ ] Code tool to change windows background.
-- [ ] Code tool to add new elements to image.
-- [ ] Download background images.
-- [ ] Download weather data.
-- [ ] Generate wallpaper with painted in weather.
-- [ ] Make it service.
-- [ ] Make it executable.
+- [x] Prepare project setup - empty structure with base configuration (TS, jest, git, ...).
+- [x] Get weather data - call APIs for weather information.
+- [x] Create image with weather info - prepare weather info-visualisation (as html) and convert it to an image.
+- [ ] Create wallpaper with weather info - add the weather image as an overlay to your background image.
+- [x] Change windows background - set newly created wallpaper as windows background.
+- [ ] Run app periodically - ~~as windows service~~ or ~~using windows scheduler~~ 
+	or ~~make it executable and add to windows autostart~~.
