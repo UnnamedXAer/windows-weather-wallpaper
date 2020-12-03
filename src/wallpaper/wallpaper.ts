@@ -1,13 +1,15 @@
 import path from 'path';
 import wallpaper from 'wallpaper';
-import nodeHtmlToImage from 'node-html-to-image';
+// require instead of import to fix tsc complaints about missing puppeteer .d.ts
+const nodeHtmlToImage = require('node-html-to-image');
 import { CurrentWeather, ForecastWeather } from '../types/types';
-import { ensurePathExists, getAssetsPath } from '../files';
+import { ensurePathExists, getAssetsPath, readSettings } from '../files';
 import Jimp from 'jimp';
 import { formatDate } from '../utils/formatDate';
 import consoleLog from '../utils/consoleLogger';
 import findNextFileName from 'find-next-file-name';
 import { addUnits } from '../utils/units';
+import { config } from '../config';
 
 export async function createWallpaper(
 	weatherData: [CurrentWeather | null, ForecastWeather | null] | null
@@ -16,9 +18,15 @@ export async function createWallpaper(
 	const currentWeatherHtml = await createCurrentWeatherHtml(currentWeather);
 	const forecastWeatherHtml = await createForecastWeatherHtml(forecastWeather);
 
-	const weatherImg = await createWeatherImg(currentWeatherHtml, forecastWeatherHtml);
+	const weatherHtml = await createWeatherHtml(currentWeatherHtml, forecastWeatherHtml);
+	if (config.isDev) {
+		require('child_process').spawn('clip').stdin.end(weatherHtml);
+		consoleLog('html copied!');
+	}
 
-	const newWallpaper = await addWeatherImagesToWallpaper(weatherImg);
+	const weatherImgPath = await createWeatherImg(weatherHtml);
+
+	const newWallpaper = await addWeatherImagesToWallpaper(weatherImgPath);
 
 	return newWallpaper;
 }
@@ -31,65 +39,60 @@ async function createCurrentWeatherHtml(currentWeather: CurrentWeather | null) {
 	}
 
 	const { weatherData } = currentWeather;
-
 	const html = `
-	<div style="color: rgb(255, 217, 0); width: 350px; height: 500px; background-color: #5f9ea0; text-align: center; display: inline-block;">
-	<H1>Current Weather</H1>
-	<DIV>
-		<div>
-			<p>Current temperature: <strong style="font-size: 1.7em">
-					${addUnits(weatherData.temperature.main)}
-				</strong>
-			</p>
-			<p>
-				Feels Like: <strong>${addUnits(weatherData.temperature.feelsLike)}</strong>
-			</p>
-		</div>
-		<div className="weather-today__icon" data-tip="${weatherData.description}">
-			<img src="http://openweathermap.org/img/wn/${weatherData.imgName}@2x.png"
-				alt="${weatherData.shortDescription}" />
-		</div>
-		<table style=" font-size: 1.1em; color:rgb(255, 217, 0);">
-			<tr>
-				<td style="border-bottom: 1px solid green;">Wind</td>
-				<td style="border-bottom: 1px solid green;">${weatherData.wind.speed} m/s</td>
-			</tr>
-			<tr>
-				<td style="border-bottom: 1px solid green;">Clouds</td>
-				<td style="border-bottom: 1px solid green;">${weatherData.clouds}%</td>
-			</tr>
-			<tr>
-				<td style="border-bottom: 1px solid green;">Cloudiness</td>
-				<td style="border-bottom: 1px solid green;">${weatherData.description}</td>
-			</tr>
-			<tr>
-				<td style="border-bottom: 1px solid green;">Pressure</td>
-				<td style="border-bottom: 1px solid green;">${weatherData.pressure} hpa</td>
-			</tr>
-			<tr>
-				<td style="border-bottom: 1px solid green;">Humidity</td>
-				<td style="border-bottom: 1px solid green;">${weatherData.humidity}%</td>
-			</tr>
-			<tr>
-				<td style="border-bottom: 1px solid green;">Sunrise</td>
-				<td style="border-bottom: 1px solid green;">${new Date(
-					weatherData.sunrise
-				).toLocaleString('en-US')}
-				</td>
-			</tr>
-			<tr>
-				<td style="border-bottom: 1px solid green;">Sunset</td>
-				<td style="border-bottom: 1px solid green;">${new Date(weatherData.sunset).toLocaleString(
-					'en-US'
-				)}</td>
-			</tr>
-		</table>
-	</DIV>
-	<p className="weather-today-details__date">Data forecasted at: ${new Date(
-		currentWeather.weatherData.dt
-	).toLocaleString('en-US')}</P>
+	<div class="card current-tile">
+	<h1>Current Weather</h1>
+	<div>
+		<p>Current temperature: <strong style="font-size: 1.7em">
+				${addUnits(weatherData.temperature.main)}
+			</strong>
+		</p>
+		<p>
+			Feels Like: <strong>${addUnits(weatherData.temperature.feelsLike)}</strong>
+		</p>
+	</div>
+	<div data-tip="${weatherData.description}">
+		<img src="http://openweathermap.org/img/wn/${weatherData.imgName}@2x.png"
+			alt="${weatherData.shortDescription}" />
+	</div>
+	<table class="current-weather-table">
+		<tr>
+			<td>Wind</td>
+			<td>${weatherData.wind.speed} m/s</td>
+		</tr>
+		<tr>
+			<td>Clouds</td>
+			<td>${weatherData.clouds}%</td>
+		</tr>
+		<tr>
+			<td>Cloudiness</td>
+			<td>${weatherData.description}</td>
+		</tr>
+		<tr>
+			<td>Pressure</td>
+			<td>${weatherData.pressure} hpa</td>
+		</tr>
+		<tr>
+			<td>Humidity</td>
+			<td>${weatherData.humidity}%</td>
+		</tr>
+		<tr>
+			<td>Sunrise</td>
+			<td>${new Date(weatherData.sunrise).toLocaleTimeString('en-US')}
+			</td>
+		</tr>
+		<tr>
+			<td style="padding-left: 8px; border-bottom: 1px solid green;">Sunset</td>
+			<td style="padding-left: 8px; border-bottom: 1px solid green;">${new Date(
+				weatherData.sunset
+			).toLocaleTimeString('en-US')}</td>
+		</tr>
+	</table>
+	<p>Data forecasted at: ${new Date(currentWeather.weatherData.dt).toLocaleString(
+		'en-US'
+	)}</p>
 </div>
-	`;
+		`;
 	consoleLog('Current weather html created.');
 	return html;
 }
@@ -104,21 +107,33 @@ async function createForecastWeatherHtml(forecastWeather: ForecastWeather | null
 	weatherData.forEach((weather) => {
 		const weatherTime = new Date(weather.time);
 		if (weatherTime.getHours() > 11 && weatherTime.getHours() < 14) {
-			weatherTiles.push(`
-			<div
-			style="color:rgb(255, 200, 47); background-color: steelblue; margin: 8px; border: 1px dashed darkblue; display: inline-block; text-align: center;">
-			<p style="font-size: 0.9em;">${weatherTime.toLocaleString('en-US')}</p>
+			const prettyTime = weatherTime
+				.toLocaleString('en-US', {
+					weekday: 'long',
+					month: 'long',
+					day: 'numeric',
+					hour: '2-digit',
+					minute: '2-digit',
+					hour12: false
+				})
+				.split(', ')
+				.join('<br>');
+
+			weatherTiles.unshift(`
+			<div class="card forecast-tile">
+			<p style="font-size: 0.9em; margin-block-end: 0em; margin-block-start: 0.5em;">${prettyTime}</p>
+			<div>
+				<p style="font-size: 1.3em"><strong>${addUnits(weather.temperature.main)}</strong></p>
+				<p style="font-size: 0.8em; margin-block-end: 0em;">Feels Like: <strong>${addUnits(
+					weather.temperature.feelsLike
+				)}</strong>
+				</p>
+			</div>
 			<div style="margin: 0 auto;">
 				<img src="http://openweathermap.org/img/wn/${weather.imgName}@2x.png" alt="${
 				weather.shortDescription
 			}" />
-				<p style="font-size: 0.7em">clouds: ${weather.clouds}%</p>
-			</div>
-			<div>
-				<p style="font-size: 1.1em"><strong>${addUnits(weather.temperature.main)}</strong></p>
-				<p style="font-size: 0.7em">Feels Like: <br /><strong>${addUnits(
-					weather.temperature.feelsLike
-				)}</strong></p>
+				<p style="margin-block-start: 0em; margin-block-end: 0em;">clouds: ${weather.clouds}%</p>
 			</div>
 		</div>
 		`);
@@ -126,48 +141,176 @@ async function createForecastWeatherHtml(forecastWeather: ForecastWeather | null
 	});
 	consoleLog('Forecast html created, number of tiles:', weatherTiles.length);
 
-	// return html;
-	return weatherTiles.join('');
+	const forecastHtml = `
+	<div class="forecast">
+	<h1>Forecast weather</h1>
+	<div style="display: flex; flex-direction: row-reverse;">
+		${weatherTiles.join('')}
+	</div>
+</div>
+	`;
+	return forecastHtml;
 }
 
-async function createWeatherImg(currentWeatherHtml: string, forecastWeatherHtml: string) {
-	const weatherHtml = `<div style="background: transparent; background-color: #5f9ea0; border: 2px solid #1fb8ff; max-width: 1000px; display: flex;
-    justify-content: center;
-    align-items: center;">
-	${currentWeatherHtml}${forecastWeatherHtml}
-	</div>`;
-	const weatherImg = await nodeHtmlToImage({
-		html: weatherHtml,
-		type: 'jpeg',
-		encoding: 'binary',
-		transparent: true
-	});
-	if (weatherImg === null) {
-		throw new Error('Fail to generate weather image.');
-	}
-	return Buffer.from(weatherImg);
-}
-
-async function addWeatherImagesToWallpaper(weatherImg: Buffer) {
-	const imagesPath = getAssetsPath('images');
+async function createWeatherHtml(
+	currentWeatherHtml: string,
+	forecastWeatherHtml: string
+) {
+	const size = { width: 1300, height: 900 };
 	try {
-		await ensurePathExists(imagesPath);
-		const myWallpaperPath = path.join(imagesPath, 'default-wallpaper.jpg');
-		const myWallpaper = (await Jimp.read(myWallpaperPath)).clone();
-		const weatherJimpImg = await Jimp.create(weatherImg);
-		const myWallPaperWithWeather = myWallpaper.composite(weatherJimpImg, 100, 100, {
-			opacitySource: 0.9,
-			mode: Jimp.BLEND_OVERLAY,
-			opacityDest: 0.1
-		});
-		return myWallPaperWithWeather;
+		const settings = await readSettings();
+		if (!settings || !settings.wallpaperSize) {
+			throw new Error('Missing wallpaper size.');
+		}
+		size.width = settings.wallpaperSize.width;
+		size.height = settings.wallpaperSize.height;
 	} catch (err) {
-		consoleLog('Fail to add weather img to wallpaper.', err);
+		consoleLog('Missing wallpaper size.', err);
+		throw err;
+	}
+	const weatherHtml = `
+	<!DOCTYPE html>
+	<html lang="en">
+	
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Weather info</title>
+	
+		<style>
+		body {
+			width: ${size.width}px;
+			height: ${size.height - 20}px;
+			padding-top: 20px;
+		}
+
+			.main {
+				width: 100%;
+				height: 100%;
+				color: rgb(255, 200, 47);
+				background-color: transparent;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+			}
+	
+			.card {
+				margin: 8px;
+				padding: 8px;
+				background-color: rgba(95, 158, 160, 0.3);
+				border: 10px solid rgba(95, 158, 160, 0.5);
+				text-align: center;
+				display: flex;
+				align-items: center;
+				flex-direction: column;
+			}
+	
+			.current-tile {
+				margin-left: 24px;
+				margin-right: 24px;
+			}
+	
+			.current-weather-table {
+				margin: auto auto;
+				font-size: 1.1em;
+				color: rgb(255, 217, 0);
+			}
+	
+			.current-weather-table td {
+				padding-bottom: 8px;
+			}
+	
+			.current-weather-table tr td:first-of-type {
+				text-align: right;
+				padding-right: 12px;
+			}
+	
+			.current-weather-table tr td:last-of-type {
+				text-align: left;
+				padding-left: 12px;
+			}
+	
+			.forecast {
+				color: rgb(255, 200, 47);
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				text-align: center;
+			}
+	
+			.forecast-tile {
+				width: 150px;
+			}
+		</style>
+	
+	</head>
+	
+	<body>
+		<div class="main">
+			${currentWeatherHtml}${forecastWeatherHtml}
+		</div>
+	</body>
+	
+	</html>
+	`;
+	consoleLog('Weather html created.')
+	return weatherHtml;
+}
+
+async function createWeatherImg(weatherHtml: string) {
+	const assetsImagesOutputPath = getAssetsPath('images-output');
+	const weatherImgName = findNextFileName(
+		assetsImagesOutputPath,
+		`weather-img-${formatDate()}.png`
+	);
+
+	const weatherImgPath = path.join(assetsImagesOutputPath, weatherImgName);
+	try {
+		await ensurePathExists(assetsImagesOutputPath);
+		await nodeHtmlToImage({
+			html: weatherHtml,
+			type: 'png',
+			encoding: 'binary',
+			output: weatherImgPath,
+			transparent: true
+		});
+		consoleLog('The new weather image created.');
+		return weatherImgPath;
+	} catch (err) {
+		consoleLog('Fail to generate weather image.', err);
 		throw err;
 	}
 }
 
-export async function saveWallPaper(image: Jimp) {
+async function addWeatherImagesToWallpaper(weatherImgPath: string) {
+	const imagesPath = getAssetsPath('images');
+	try {
+		await ensurePathExists(imagesPath);
+		const settings = await readSettings();
+		if (!settings || !settings.wallpaperCopyPath) {
+			throw new Error(
+				`Missing ${settings ? 'path to copy of wallpaper' : 'settings'}.`
+			);
+		}
+		const myWallpaperPath = path.normalize(settings.wallpaperCopyPath);
+
+		const myWallpaper = (await Jimp.read(myWallpaperPath)).clone();
+		const weatherJimpImg = await Jimp.read(weatherImgPath);
+
+		const myWallPaperWithWeather = myWallpaper.composite(weatherJimpImg, 0, 0, {
+			opacitySource: 0.9,
+			mode: Jimp.BLEND_OVERLAY,
+			opacityDest: 0.1
+		});
+		consoleLog('The weather info image added to the wallpaper');
+		return myWallPaperWithWeather;
+	} catch (err) {
+		consoleLog('Fail to add weather img to the wallpaper.', err);
+		throw err;
+	}
+}
+
+export async function saveWallpaper(image: Jimp) {
 	const imgOutputPath = getAssetsPath('images-output');
 	await ensurePathExists(imgOutputPath);
 	const imageName = findNextFileName(
@@ -177,13 +320,21 @@ export async function saveWallPaper(image: Jimp) {
 	const imgPath = path.join(imgOutputPath, imageName);
 	try {
 		await image.writeAsync(imgPath);
+		consoleLog('The new wallpaper image saved', imgPath);
 		return imgPath;
 	} catch (err) {
-		consoleLog('Fail to save wallpaper with weather.', err);
+		consoleLog('Fail to save updated wallpaper.', err);
 		throw err;
 	}
 }
 
 export function setWallpaper(wallpaperPath: string) {
-	return wallpaper.set(wallpaperPath);
+	try {
+		consoleLog('About to set the new windows wallpaper.');
+		wallpaper.set(wallpaperPath);
+		consoleLog('The Wallpaper set.');
+	} catch (err) {
+		consoleLog('Fail to set wallpaper', err);
+		throw err;
+	}
 }

@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
+import Jimp from 'jimp';
 import findNextFileName from 'find-next-file-name';
 import consoleLog from '../utils/consoleLogger';
 import { getEnvPrefix } from '../utils/envPrefix';
@@ -9,24 +10,6 @@ import wallpaper from 'wallpaper';
 import emitter from '../events/emitter';
 import { IMPORTANT_ERROR } from '../events/eventsTypes';
 import { Settings } from '../types/types';
-
-export async function readImage(imgName: string) {
-	if (imgName === '') {
-		throw new Error('Empty image name supplied.');
-	}
-	const ext = path.extname(imgName);
-	if (['.png', '.jpg', '.bmp', '.jiff'].includes(ext) === false) {
-		throw new Error(`The "${ext}" is not an image file.`);
-	}
-	const imgPath = path.join(getAssetsPath('images'), imgName);
-
-	try {
-		const file = await fs.readFile(imgPath);
-		return file;
-	} catch (err) {
-		throw err;
-	}
-}
 
 export async function ensurePathExists(dir: string) {
 	try {
@@ -39,7 +22,7 @@ export async function ensurePathExists(dir: string) {
 }
 
 export function getAssetsPath(
-	resourceName: 'images' | 'images-output' | 'fonts' | 'data',
+	resourceName: 'images' | 'images-output' | 'data',
 	fileName?: string
 ) {
 	if (!resourceName)
@@ -75,13 +58,13 @@ export function getStoragePath(resourceName: 'logs', fileName?: string) {
 
 export function getSettingsPath() {
 	return {
-		settingsPath: path.join(__dirname, '..', 'pc-settings', getEnvPrefix()),
+		settingsPath: path.join(__dirname, '..', '..', 'pc-settings', getEnvPrefix()),
 		settingsFileName: 'pc.settings.json'
 	};
 }
 
 export async function copyFile(sourcePath: string, destinationPath: string) {
-	consoleLog('Copying files from:', sourcePath, 'to:', destinationPath);
+	consoleLog('About to copy file from:', sourcePath, 'to:', destinationPath);
 	try {
 		await fs.copyFile(sourcePath, destinationPath);
 	} catch (err) {
@@ -134,6 +117,7 @@ export async function saveAndOpenLog(description: string, err?: Error) {
 		text += '\n > name: ' + err.name;
 		text += '\n > message: ' + err.message;
 		text += '\n > stack: ' + err.stack;
+		text += '\n\n Error object:\n' + require('util').inspect(err);
 	}
 	try {
 		const logPath = await saveLog(text, err ? 'error' : 'default');
@@ -143,32 +127,62 @@ export async function saveAndOpenLog(description: string, err?: Error) {
 	}
 }
 
-export async function saveDefaultWallpaper(settings: Settings) {
+export async function saveDefaultWallpaperCopy(settings: Settings) {
 	if (!settings.defaultWallpaperPath) {
 		const defaultWallpaperPath = await wallpaper.get();
 		settings.defaultWallpaperPath = defaultWallpaperPath;
-
-		const wallpaperCopyPath = await makeDefaultWallpaperCopy(defaultWallpaperPath);
-		settings.wallpaperCopyPath = wallpaperCopyPath;
 	}
+
+	const wallpaperCopyPath = await makeDefaultWallpaperCopy(
+		settings.defaultWallpaperPath
+	);
+	settings.wallpaperCopyPath = wallpaperCopyPath;
 
 	return settings;
 }
 
 export async function makeDefaultWallpaperCopy(defaultWallpaperPath: string) {
-	const ext = path.extname(defaultWallpaperPath);
+	const defaultWallpaperName = path.basename(defaultWallpaperPath);
+	const wallpaperCopyName = 'def-wallpaper-' + defaultWallpaperName;
+	const wallpaperCopyPath = getAssetsPath('images');
+	const wallpaperCopyPathName = path.join(wallpaperCopyPath, wallpaperCopyName);
 	try {
-		const wallpaperCopyPath = getAssetsPath('images', 'default-wallpaper' + ext);
-		await copyFile(defaultWallpaperPath, wallpaperCopyPath);
-		return wallpaperCopyPath;
+		await fs.access(wallpaperCopyPathName);
+		consoleLog('The wallpaper copy already exists.');
+		return wallpaperCopyPathName;
 	} catch (err) {
-		consoleLog('Unable to create copy of default wallpaper.');
-		emitter.emit(IMPORTANT_ERROR);
-		return;
+		/* do nothing */
+	}
+	try {
+		await ensurePathExists(wallpaperCopyPath);
+		await copyFile(defaultWallpaperPath, wallpaperCopyPathName);
+		consoleLog('Copy of the wallpaper created.');
+		return wallpaperCopyPathName;
+	} catch (err) {
+		consoleLog('Unable to create copy of default wallpaper.', err);
+		throw err;
 	}
 }
 
-export async function getSettings() {
+export async function updateWallpaperSize(settings: Settings) {
+	const wallpaperSize = { width: 1300, height: 900 };
+	try {
+		if (settings.wallpaperCopyPath === null) {
+			throw new Error(
+				'Unable to update wallpaper size - missing wallpaper copy path.'
+			);
+		}
+		const wallpaperImg = Jimp.read(settings.wallpaperCopyPath);
+		wallpaperSize.width = (await wallpaperImg).getWidth();
+		wallpaperSize.height = (await wallpaperImg).getHeight();
+	} catch (err) {
+		consoleLog('Unable to update wallpaper size.');
+	}
+	settings.wallpaperSize = wallpaperSize;
+	return settings;
+}
+
+export async function readSettings() {
 	const { settingsPath, settingsFileName } = getSettingsPath();
 	const filePath = path.join(settingsPath, settingsFileName);
 	try {

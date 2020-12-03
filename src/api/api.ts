@@ -1,26 +1,19 @@
 import axios from 'axios';
 import { readFileSync } from 'fs';
 import { config } from '../config';
-import emitter from '../events/emitter';
-import { NO_LOCATION } from '../events/eventsTypes';
 import { getAssetsPath } from '../files';
 import consoleLog from '../utils/consoleLogger';
 import { CurrentWeather, ForecastWeather, Geolocation } from '../types/types';
-import { formatDate } from '../utils/formatDate';
 
 export const fetchWeatherData = async (loc: Geolocation | null) => {
 	if (loc === null) {
-		emitter.emit(
-			NO_LOCATION,
-			'Unable to fetch weather data because location is null.'
-		);
-		return null;
+		throw new Error('Unable to fetch weather data - missing location.');
 	}
 	const weatherData = await Promise.all([
 		fetchCurrentWeather(loc),
 		fetchForecastWeather(loc)
 	]);
-
+	consoleLog('Weather data fetched.');
 	return weatherData;
 };
 
@@ -41,7 +34,6 @@ export const fetchCurrentWeather = async (loc: Geolocation) => {
 	};
 	const url = config.weatherApiUrl;
 	try {
-		consoleLog(formatDate(Date.now()));
 		if (config.isDev) {
 			const currentWeather = JSON.parse(
 				readFileSync(
@@ -75,7 +67,6 @@ export const fetchForecastWeather = async (loc: Geolocation) => {
 	};
 	const url = config.weatherApiUrl;
 	try {
-		consoleLog(formatDate(Date.now()));
 		if (config.isDev) {
 			const forecastData = JSON.parse(
 				readFileSync(

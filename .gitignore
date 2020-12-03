@@ -5,8 +5,9 @@ node_modules
 /src/assets/dev/*
 /src/assets/prod/*
 
-/src/pc-settings
+pc-settings
 
 yarn-error.log
 
 *.html
+*.log

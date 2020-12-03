@@ -6,6 +6,7 @@ export interface Config {
 	locationApiUrl: string;
 	weatherApiUrl: string;
 	defaultWallpaperPath: string;
+	trackLocationChanges: boolean;
 }
 
 export interface Geolocation {
@@ -80,8 +81,12 @@ export interface ForecastWeather {
 }
 
 export interface Settings {
-	dt: string;
-	defaultWallpaperPath?: string;
-	wallpaperCopyPath?: string;
+	dt: string | null;
+	defaultWallpaperPath: string | null;
+	wallpaperCopyPath: string | null;
+	wallpaperSize: {
+		width: number;
+		height: number;
+	} | null;
 	location: Geolocation | null;
 }

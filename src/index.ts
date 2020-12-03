@@ -2,20 +2,27 @@ require('dotenv').config();
 import { fetchWeatherData } from './api/api';
 import consoleLog from './utils/consoleLogger';
 import { setupSettings } from './settings';
-import { createWallpaper, saveWallPaper, setWallpaper } from './wallpaper/wallpaper';
+import { createWallpaper, saveWallpaper, setWallpaper } from './wallpaper/wallpaper';
+import emitter from './events/emitter';
+import { IMPORTANT_ERROR } from './events/eventsTypes';
 
 function run() {
-	return setupSettings()
+	return (async () => {})()
+		.then(() => setupSettings())
 		.then((settings) => fetchWeatherData(settings.location))
 		.then((weatherData) => createWallpaper(weatherData))
-		.then((newWallpaper) => saveWallPaper(newWallpaper))
+		.then((newWallpaper) => saveWallpaper(newWallpaper))
 		.then((newWallpaperPath) => setWallpaper(newWallpaperPath))
 		.catch((err) => {
+			emitter.emit(IMPORTANT_ERROR, 'Wallpaper update failed.', err);
 			consoleLog(err);
 		})
 		.finally(() => {
 			consoleLog('all done');
-			setTimeout(run, 1000 * 60 * 60 * 8);
+			const timeout = 1000 * 60 * 60 * 1;
+			const nextUpdateAt = new Date(Date.now() + timeout);
+			consoleLog({ 'Next update at:': nextUpdateAt.toLocaleString() });
+			setTimeout(run, timeout);
 		});
 }
 

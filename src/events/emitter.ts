@@ -10,7 +10,6 @@ emitter.on(NO_LOCATION, (description: string, err: Error) => {
 });
 
 emitter.on(IMPORTANT_ERROR, (description: string, err: Error) => {
-	consoleLog(description, err);
 	saveAndOpenLog(description, err);
 });
 
