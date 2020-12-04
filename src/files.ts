@@ -1,6 +1,5 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { exec } from 'child_process';
 import wallpaper from 'wallpaper';
 import Jimp from 'jimp';
 import findNextFileName from 'find-next-file-name';
@@ -8,11 +7,14 @@ import consoleLog from './utils/consoleLogger';
 import { formatDate } from './utils/formatDate';
 import { Settings } from './types/types';
 import { config } from './config';
+import { PathLike } from 'fs';
+import { openInDefaultApp } from './processes';
 
-export async function ensurePathExists(dir: string) {
+export async function ensurePathExists(dir: PathLike) {
 	try {
 		await fs.access(dir);
 	} catch (err) {
+		consoleLog('About to create dir:', dir);
 		await fs.mkdir(dir, { recursive: true });
 	}
 
@@ -58,17 +60,16 @@ export async function getSettingsPath() {
 export async function copyFile(sourcePath: string, destinationPath: string) {
 	consoleLog('About to copy file from:', sourcePath, 'to:', destinationPath);
 	try {
-		await fs.copyFile(sourcePath, destinationPath);
+		return await fs.copyFile(sourcePath, destinationPath);
 	} catch (err) {
 		throw err;
 	}
 }
 
-export async function saveLog(text: string, type: 'error' | 'default') {
+export async function saveLog(text: string, type?: 'error' | 'default') {
 	try {
 		const storagePath = await getStoragePath('logs');
-		await ensurePathExists(storagePath);
-		let logFileName = `log${type === 'error' ? '-error' : ''}${formatDate(
+		let logFileName = `log${type === 'error' ? '-error' : ''}-${formatDate(
 			new Date()
 		)}.log`;
 		logFileName = findNextFileName(storagePath, logFileName);
@@ -77,26 +78,6 @@ export async function saveLog(text: string, type: 'error' | 'default') {
 		return logPath;
 	} catch (err) {
 		consoleLog('Unable to save log.', err);
-		throw err;
-	}
-}
-
-export async function openInDefaultApp(filePath: string) {
-	try {
-		const subprocess = exec('start "" "' + filePath + '"');
-		consoleLog('Spawned subprocess #', subprocess.pid, filePath);
-		subprocess.on('close', (code, signal) => {
-			consoleLog(
-				'Subprocess #',
-				subprocess.pid,
-				'Closed with code:',
-				code,
-				' and signal: ',
-				signal
-			);
-		});
-	} catch (err) {
-		consoleLog('Fail to open (in default app):', filePath);
 		throw err;
 	}
 }

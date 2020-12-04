@@ -12,5 +12,3 @@ export const config: Config = {
 	defaultWallpaperPath: process.env.DEFAULT_WALLPAPER_PATH as string,
 	trackLocationChanges: process.env.TRACK_LOCATION_CHANGES === 'TRUE'
 };
-
-consoleLog('Config:', config);

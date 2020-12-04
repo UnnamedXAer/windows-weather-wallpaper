@@ -5,9 +5,12 @@ import { setupSettings } from './settings';
 import { createWallpaper, saveWallpaper, setWallpaper } from './wallpaper';
 import emitter from './emitter';
 import { IMPORTANT_ERROR } from './eventsTypes';
+import { config } from './config';
 
 function run() {
-	return (async () => {})()
+	return (async () => {
+		consoleLog('Config:', config);
+	})()
 		.then(() => setupSettings())
 		.then((settings) => fetchWeatherData(settings.location))
 		.then((weatherData) => createWallpaper(weatherData))
@@ -19,10 +22,12 @@ function run() {
 		})
 		.finally(() => {
 			consoleLog('all done');
-			const timeout = 1000 * 60 * 60 * 1;
-			const nextUpdateAt = new Date(Date.now() + timeout);
-			consoleLog({ 'Next update at:': nextUpdateAt.toLocaleString() });
-			setTimeout(run, timeout);
+			if (config.NODE_ENV === 'production') {
+				const timeout = 1000 * 60 * 60 * 1;
+				const nextUpdateAt = new Date(Date.now() + timeout);
+				consoleLog({ 'Next update at:': nextUpdateAt.toLocaleString() });
+				setTimeout(run, timeout);
+			}
 		});
 }
 
