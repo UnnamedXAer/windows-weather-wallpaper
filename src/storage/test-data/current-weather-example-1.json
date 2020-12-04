@@ -1,0 +1,31 @@
+{
+	"weatherData": {
+		"dt": 1606831101000,
+		"imgName": "04d",
+		"temperature": {
+			"main": 0.39,
+			"feelsLike": -6.37,
+			"min": 0,
+			"max": 0.56
+		},
+		"pressure": 1022,
+		"humidity": 93,
+		"wind": {
+			"speed": 6.7,
+			"deg": 110
+		},
+		"time": 1606831101000,
+		"sunrise": 1606802957000,
+		"sunset": 1606833185000,
+		"visibility": 10000,
+		"description": "overcast clouds",
+		"shortDescription": "Clouds",
+		"clouds": 90
+	},
+	"location": {
+		"id": 761968,
+		"city": "Rzeszów",
+		"latitude": 50.04,
+		"longitude": 21.99
+	}
+}

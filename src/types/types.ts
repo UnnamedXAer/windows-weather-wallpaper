@@ -2,6 +2,7 @@ export type NODE_ENV = 'production' | 'development' | 'test';
 export interface Config {
 	NODE_ENV: NODE_ENV;
 	isDev: boolean;
+	envPrefix: 'test' | 'dev' | 'prod';
 	console_logs: boolean;
 	locationApiUrl: string;
 	weatherApiUrl: string;

@@ -1,10 +1,10 @@
 require('dotenv').config();
-import { fetchWeatherData } from './api/api';
+import { fetchWeatherData } from './api';
 import consoleLog from './utils/consoleLogger';
 import { setupSettings } from './settings';
-import { createWallpaper, saveWallpaper, setWallpaper } from './wallpaper/wallpaper';
-import emitter from './events/emitter';
-import { IMPORTANT_ERROR } from './events/eventsTypes';
+import { createWallpaper, saveWallpaper, setWallpaper } from './wallpaper';
+import emitter from './emitter';
+import { IMPORTANT_ERROR } from './eventsTypes';
 
 function run() {
 	return (async () => {})()

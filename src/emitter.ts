@@ -1,6 +1,6 @@
 import Events from 'events';
-import { saveAndOpenLog } from '../files';
-import consoleLog from '../utils/consoleLogger';
+import { saveAndOpenLog } from './files';
+import consoleLog from './utils/consoleLogger';
 import { IMPORTANT_ERROR, NO_LOCATION } from './eventsTypes';
 
 const emitter = new Events.EventEmitter();

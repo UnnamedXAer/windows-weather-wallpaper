@@ -1,9 +1,9 @@
 node_modules
 .env
-/dist
+dist
 
-/src/assets/dev/*
-/src/assets/prod/*
+src/storage/*
+!src/storage/test-data/
 
 pc-settings
 

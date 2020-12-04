@@ -2,14 +2,14 @@ import path from 'path';
 import wallpaper from 'wallpaper';
 // require instead of import to fix tsc complaints about missing puppeteer .d.ts
 const nodeHtmlToImage = require('node-html-to-image');
-import { CurrentWeather, ForecastWeather } from '../types/types';
-import { ensurePathExists, getAssetsPath, readSettings } from '../files';
+import { CurrentWeather, ForecastWeather } from './types/types';
+import { ensurePathExists, getStoragePath, readSettings } from './files';
 import Jimp from 'jimp';
-import { formatDate } from '../utils/formatDate';
-import consoleLog from '../utils/consoleLogger';
+import { formatDate } from './utils/formatDate';
+import consoleLog from './utils/consoleLogger';
 import findNextFileName from 'find-next-file-name';
-import { addUnits } from '../utils/units';
-import { config } from '../config';
+import { addUnits } from './utils/units';
+import { config } from './config';
 
 export async function createWallpaper(
 	weatherData: [CurrentWeather | null, ForecastWeather | null] | null
@@ -253,12 +253,12 @@ async function createWeatherHtml(
 	
 	</html>
 	`;
-	consoleLog('Weather html created.')
+	consoleLog('Weather html created.');
 	return weatherHtml;
 }
 
 async function createWeatherImg(weatherHtml: string) {
-	const assetsImagesOutputPath = getAssetsPath('images-output');
+	const assetsImagesOutputPath = await getStoragePath('images/weather');
 	const weatherImgName = findNextFileName(
 		assetsImagesOutputPath,
 		`weather-img-${formatDate()}.png`
@@ -283,9 +283,7 @@ async function createWeatherImg(weatherHtml: string) {
 }
 
 async function addWeatherImagesToWallpaper(weatherImgPath: string) {
-	const imagesPath = getAssetsPath('images');
 	try {
-		await ensurePathExists(imagesPath);
 		const settings = await readSettings();
 		if (!settings || !settings.wallpaperCopyPath) {
 			throw new Error(
@@ -311,7 +309,7 @@ async function addWeatherImagesToWallpaper(weatherImgPath: string) {
 }
 
 export async function saveWallpaper(image: Jimp) {
-	const imgOutputPath = getAssetsPath('images-output');
+	const imgOutputPath = await getStoragePath('images/wallpaper');
 	await ensurePathExists(imgOutputPath);
 	const imageName = findNextFileName(
 		imgOutputPath,

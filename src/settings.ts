@@ -1,8 +1,8 @@
-import { fetchMyGeolocation } from '../api/api';
-import { readSettings, saveDefaultWallpaperCopy, saveSettings, updateWallpaperSize } from '../files';
-import consoleLog from '../utils/consoleLogger';
-import { Settings } from '../types/types';
-import { config } from '../config';
+import { fetchMyGeolocation } from './api';
+import { readSettings, saveDefaultWallpaperCopy, saveSettings, updateWallpaperSize } from './files';
+import consoleLog from './utils/consoleLogger';
+import { Settings } from './types/types';
+import { config } from './config';
 
 export async function setupSettings() {
 	let savedSettings = await readSettings();

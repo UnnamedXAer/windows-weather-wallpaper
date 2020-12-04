@@ -1,15 +1,13 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
+import wallpaper from 'wallpaper';
 import Jimp from 'jimp';
 import findNextFileName from 'find-next-file-name';
-import consoleLog from '../utils/consoleLogger';
-import { getEnvPrefix } from '../utils/envPrefix';
-import { formatDate } from '../utils/formatDate';
-import wallpaper from 'wallpaper';
-import emitter from '../events/emitter';
-import { IMPORTANT_ERROR } from '../events/eventsTypes';
-import { Settings } from '../types/types';
+import consoleLog from './utils/consoleLogger';
+import { formatDate } from './utils/formatDate';
+import { Settings } from './types/types';
+import { config } from './config';
 
 export async function ensurePathExists(dir: string) {
 	try {
@@ -21,45 +19,39 @@ export async function ensurePathExists(dir: string) {
 	return dir;
 }
 
-export function getAssetsPath(
-	resourceName: 'images' | 'images-output' | 'data',
+export async function getStoragePath(
+	resourceName:
+		| 'logs'
+		| 'test-data'
+		| 'images/weather'
+		| 'images/default-wallpaper'
+		| 'images/wallpaper'
+		| 'settings',
 	fileName?: string
 ) {
-	if (!resourceName)
+	if (!resourceName) {
 		throw new Error('Parameter "resourceName" is required and cannot be empty');
-	if (fileName) {
-		return path.join(
-			__dirname,
-			'..',
-			'assets',
-			getEnvPrefix(),
-			resourceName,
-			fileName
-		);
 	}
-	return path.join(__dirname, '..', 'assets', getEnvPrefix(), resourceName);
+
+	let resourcePath = path.join(__dirname, 'storage', config.envPrefix, resourceName);
+	if (resourceName === 'test-data') {
+		resourcePath = path.join(__dirname, 'storage', resourceName);
+	}
+
+	await ensurePathExists(resourcePath);
+	if (fileName) {
+		resourcePath = path.join(resourcePath, fileName);
+	}
+
+	return resourcePath;
 }
 
-export function getStoragePath(resourceName: 'logs', fileName?: string) {
-	if (!resourceName)
-		throw new Error('Parameter "resourceName" is required and cannot be empty');
-	if (fileName) {
-		return path.join(
-			__dirname,
-			'..',
-			'storage',
-			getEnvPrefix(),
-			resourceName,
-			fileName
-		);
-	}
-	return path.join(__dirname, '..', 'storage', getEnvPrefix(), resourceName);
-}
-
-export function getSettingsPath() {
+export async function getSettingsPath() {
 	return {
-		settingsPath: path.join(__dirname, '..', '..', 'pc-settings', getEnvPrefix()),
-		settingsFileName: 'pc.settings.json'
+		settingsPath: await getStoragePath('settings'),
+		settingsFileName: `pc.${
+			config.envPrefix === 'prod' ? '' : config.envPrefix + '-'
+		}settings.json`
 	};
 }
 
@@ -74,7 +66,7 @@ export async function copyFile(sourcePath: string, destinationPath: string) {
 
 export async function saveLog(text: string, type: 'error' | 'default') {
 	try {
-		const storagePath = getStoragePath('logs');
+		const storagePath = await getStoragePath('logs');
 		await ensurePathExists(storagePath);
 		let logFileName = `log${type === 'error' ? '-error' : ''}${formatDate(
 			new Date()
@@ -144,7 +136,7 @@ export async function saveDefaultWallpaperCopy(settings: Settings) {
 export async function makeDefaultWallpaperCopy(defaultWallpaperPath: string) {
 	const defaultWallpaperName = path.basename(defaultWallpaperPath);
 	const wallpaperCopyName = 'def-wallpaper-' + defaultWallpaperName;
-	const wallpaperCopyPath = getAssetsPath('images');
+	const wallpaperCopyPath = await getStoragePath('images/default-wallpaper');
 	const wallpaperCopyPathName = path.join(wallpaperCopyPath, wallpaperCopyName);
 	try {
 		await fs.access(wallpaperCopyPathName);
@@ -183,7 +175,7 @@ export async function updateWallpaperSize(settings: Settings) {
 }
 
 export async function readSettings() {
-	const { settingsPath, settingsFileName } = getSettingsPath();
+	const { settingsPath, settingsFileName } = await getSettingsPath();
 	const filePath = path.join(settingsPath, settingsFileName);
 	try {
 		const fileContent = await fs.readFile(filePath);
@@ -197,7 +189,7 @@ export async function readSettings() {
 }
 
 export async function saveSettings(settings: Settings) {
-	const { settingsPath, settingsFileName } = getSettingsPath();
+	const { settingsPath, settingsFileName } = await getSettingsPath();
 	await ensurePathExists(settingsPath);
 	const updatedSettings = { ...settings, dt: new Date().toISOString() } as Settings;
 	const fileContent = JSON.stringify(updatedSettings, null, 4);

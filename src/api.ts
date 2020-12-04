@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { readFileSync } from 'fs';
-import { config } from '../config';
-import { getAssetsPath } from '../files';
-import consoleLog from '../utils/consoleLogger';
-import { CurrentWeather, ForecastWeather, Geolocation } from '../types/types';
+import { config } from './config';
+import consoleLog from './utils/consoleLogger';
+import { CurrentWeather, ForecastWeather, Geolocation } from './types/types';
+import { getStoragePath } from './files';
 
 export const fetchWeatherData = async (loc: Geolocation | null) => {
 	if (loc === null) {
@@ -37,7 +37,7 @@ export const fetchCurrentWeather = async (loc: Geolocation) => {
 		if (config.isDev) {
 			const currentWeather = JSON.parse(
 				readFileSync(
-					getAssetsPath('data', 'current-weather-example-1.json')
+					await getStoragePath('test-data', 'current-weather-example-1.json')
 				).toString()
 			);
 			return currentWeather as CurrentWeather;
@@ -70,7 +70,7 @@ export const fetchForecastWeather = async (loc: Geolocation) => {
 		if (config.isDev) {
 			const forecastData = JSON.parse(
 				readFileSync(
-					getAssetsPath('data', 'forecast-weather-example-1.json')
+					await getStoragePath('test-data', 'forecast-weather-example-1.json')
 				).toString()
 			);
 			return forecastData as ForecastWeather;
@@ -87,7 +87,9 @@ export const fetchMyGeolocation = async () => {
 	try {
 		if (config.isDev) {
 			const geolocation = JSON.parse(
-				readFileSync(getAssetsPath('data', 'location-example-1.json')).toString()
+				readFileSync(
+					await getStoragePath('test-data', 'location-example-1.json')
+				).toString()
 			);
 			return geolocation as Geolocation;
 		}
