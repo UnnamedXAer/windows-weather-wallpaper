@@ -15,7 +15,7 @@ export async function openInDefaultApp(filePath: string) {
 				signal
 			);
 		});
-		return subprocess.pid;
+		return subprocess;
 	} catch (err) {
 		consoleLog('Fail to open (in default app):', filePath);
 		throw err;

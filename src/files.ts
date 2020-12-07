@@ -31,10 +31,6 @@ export async function getStoragePath(
 		| 'settings',
 	fileName?: string
 ) {
-	if (!resourceName) {
-		throw new Error('Parameter "resourceName" is required and cannot be empty');
-	}
-
 	let resourcePath = path.join(__dirname, 'storage', config.envPrefix, resourceName);
 	if (resourceName === 'test-data') {
 		resourcePath = path.join(__dirname, 'storage', resourceName);
@@ -145,9 +141,9 @@ export async function updateWallpaperSize(settings: Settings) {
 				'Unable to update wallpaper size - missing wallpaper copy path.'
 			);
 		}
-		const wallpaperImg = Jimp.read(settings.wallpaperCopyPath);
-		wallpaperSize.width = (await wallpaperImg).getWidth();
-		wallpaperSize.height = (await wallpaperImg).getHeight();
+		const wallpaperImg = await Jimp.read(settings.wallpaperCopyPath);
+		wallpaperSize.width = wallpaperImg.getWidth();
+		wallpaperSize.height = wallpaperImg.getHeight();
 	} catch (err) {
 		consoleLog('Unable to update wallpaper size.');
 	}
