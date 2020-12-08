@@ -1,14 +1,19 @@
 import fs from 'fs/promises';
+import path from 'path';
 import { mocked } from 'ts-jest/utils';
 import wallpaper from 'wallpaper';
 import Jimp from 'jimp';
 import {
+	checkIfDirShouldBeRemoved,
 	copyFile,
 	ensurePathExists,
+	freeStorageSpace,
+	getDirType,
 	getSettingsPath,
 	getStoragePath,
 	makeDefaultWallpaperCopy,
 	readSettings,
+	removeOldDir,
 	saveAndOpenLog,
 	saveDefaultWallpaperCopy,
 	saveLog,
@@ -17,6 +22,14 @@ import {
 } from '../files';
 import { openInDefaultApp } from '../processes';
 import { Settings } from '../types/types';
+import {
+	DAY_IN_MS,
+	DEFAULT_WALLPAPER_NAME_PREFIX,
+	HOUR_IN_MS,
+	MINUTE_IN_MS
+} from '../constants';
+import { formatDate } from '../utils/formatDate';
+import { Stats } from 'fs';
 
 jest.mock('../processes');
 jest.mock('wallpaper');
@@ -34,6 +47,37 @@ const DEFAULT_SETTINGS: Settings = {
 	wallpaperCopyPath: null,
 	wallpaperSize: null
 };
+
+const exampleName = 'waterfall.png';
+const examplePath = 'X://my-wallpapers';
+const examplePathName = `${examplePath}/${exampleName}`;
+
+const fsReadDirMockReturnValue = Promise.resolve(
+	new Array(3).fill('').map((_, idx) => `wallpaper-${formatDate()} (${idx}).jpg`)
+) as Promise<any[]>;
+
+const now = Date.now();
+
+const fsStatsMockReturnValue = Array(3)
+	.fill(1)
+	.map((_, idx) => {
+		return Promise.resolve({
+			atimeMs: now - MINUTE_IN_MS * idx,
+			ctimeMs: now - MINUTE_IN_MS * idx,
+			mtimeMs: now - 1000 * idx,
+			isDirectory: () => idx / 2 === 0,
+			isFile: () => idx / 2 !== 0
+		} as Stats);
+	})
+	.concat(
+		Promise.resolve({
+			atimeMs: now - MINUTE_IN_MS * 100000,
+			ctimeMs: now - MINUTE_IN_MS * 100000,
+			mtimeMs: now - MINUTE_IN_MS * 100000,
+			isDirectory: () => false,
+			isFile: () => false
+		} as Stats)
+	);
 
 test('should create dir if not exists and return dir', async () => {
 	const existingPath = '../../src/__tests__';
@@ -62,21 +106,28 @@ test('should return path to storage dir inside src with env prefix', async () =>
 	);
 	expect(await getStoragePath('test-data')).toMatch(/.\\src\\storage\\test-data$/);
 
-	const storagePath = await getStoragePath('test-data', 'def-wallpaper.jpg');
-	expect(storagePath).toMatch(/\\src\\storage\\test-data\\def-wallpaper[.]jpg$/);
+	const storagePath = await getStoragePath(
+		'test-data',
+		`${DEFAULT_WALLPAPER_NAME_PREFIX}.jpg`
+	);
+	expect(storagePath).toMatch(
+		new RegExp(
+			`\\\\src\\\\storage\\\\test-data\\\\${DEFAULT_WALLPAPER_NAME_PREFIX}[.]jpg$`
+		)
+	);
 });
 
 test('should copy file', async () => {
 	mockedFs.copyFile.mockResolvedValue(Promise.resolve());
 
 	const res = await copyFile(
-		await getStoragePath('test-data', 'def-wallpaper.jpg'),
-		await getStoragePath('test-data', 'def-wallpaper-jest.jpg')
+		await getStoragePath('test-data', '${DEFAULT_WALLPAPER_NAME_PREFIX}.jpg'),
+		await getStoragePath('test-data', '${DEFAULT_WALLPAPER_NAME_PREFIX}-jest.jpg')
 	);
 
 	await copyFile(
-		await getStoragePath('test-data', 'def-wallpaper.jpg'),
-		await getStoragePath('test-data', 'def-wallpaper-jest2.jpg')
+		await getStoragePath('test-data', '${DEFAULT_WALLPAPER_NAME_PREFIX}.jpg'),
+		await getStoragePath('test-data', '${DEFAULT_WALLPAPER_NAME_PREFIX}-jest2.jpg')
 	);
 
 	expect(res).toBeUndefined();
@@ -104,8 +155,6 @@ test('should write text to log file and return path base on type parameter.', as
 
 test('should save copy the default wallpaper', async () => {
 	let wallpaperCopyPath: string;
-	const exampleName = 'waterfall.png';
-	const examplePath = `X://my-wallpapers/${exampleName}`;
 
 	mockedFs.copyFile.mockClear();
 	mockedFs.access.mockClear();
@@ -113,32 +162,34 @@ test('should save copy the default wallpaper', async () => {
 		.mockResolvedValueOnce()
 		.mockRejectedValueOnce(new Error('Dir does not exists.'));
 
-	wallpaperCopyPath = await makeDefaultWallpaperCopy(examplePath);
+	wallpaperCopyPath = await makeDefaultWallpaperCopy(examplePathName);
 
-	expect(wallpaperCopyPath).toMatch(new RegExp(`\\\\def-wallpaper-${exampleName}$`));
+	expect(wallpaperCopyPath).toMatch(
+		new RegExp(`\\\\${DEFAULT_WALLPAPER_NAME_PREFIX}${exampleName}$`)
+	);
 	expect(mockedFs.access).toBeCalledTimes(3);
 	expect(mockedFs.copyFile).toBeCalledTimes(1);
 
 	mockedFs.copyFile.mockClear();
 	mockedFs.access.mockClear();
 
-	wallpaperCopyPath = await makeDefaultWallpaperCopy(examplePath);
+	wallpaperCopyPath = await makeDefaultWallpaperCopy(examplePathName);
 
-	expect(wallpaperCopyPath).toMatch(new RegExp(`\\\\def-wallpaper-${exampleName}$`));
+	expect(wallpaperCopyPath).toMatch(
+		new RegExp(`\\\\${DEFAULT_WALLPAPER_NAME_PREFIX}${exampleName}$`)
+	);
 	expect(mockedFs.access).toBeCalledTimes(2);
 	expect(mockedFs.copyFile).toBeCalledTimes(0);
 });
 
 test('should ', async () => {
-	const exampleName = 'waterfall.png';
-	const examplePath = `X://my-wallpapers/${exampleName}`;
-	mockedWallpaper.get.mockResolvedValue(examplePath);
+	mockedWallpaper.get.mockResolvedValue(examplePathName);
 
 	let settings = await saveDefaultWallpaperCopy({
 		...DEFAULT_SETTINGS
 	});
 
-	expect(settings.defaultWallpaperPath).toBe(examplePath);
+	expect(settings.defaultWallpaperPath).toBe(examplePathName);
 	expect(settings.wallpaperCopyPath).not.toBeNull;
 
 	settings = await saveDefaultWallpaperCopy({ ...settings, wallpaperCopyPath: null });
@@ -151,7 +202,7 @@ test('should ', async () => {
 });
 
 test('should update the settings with the wallpaper size', async () => {
-	const examplePath = 'X://project-path-wallpapers/waterfall.png';
+	// const examplePath = 'X://project-path-wallpapers/waterfall.png';
 
 	mockedJimp.read.mockImplementation(
 		async () =>
@@ -167,7 +218,7 @@ test('should update the settings with the wallpaper size', async () => {
 	expect(settings.wallpaperSize).toMatchObject({ width: 1300, height: 900 });
 	settings = await updateWallpaperSize({
 		...settings,
-		wallpaperCopyPath: examplePath
+		wallpaperCopyPath: examplePathName
 	});
 	expect(settings.wallpaperSize).toMatchObject({ width: 1920, height: 1080 });
 	expect(mockedJimp.read).toBeCalledTimes(1);
@@ -206,4 +257,90 @@ test('should write text to log file and open it.', async () => {
 	await saveAndOpenLog('My text for normal log.');
 	expect(mockedFs.writeFile).toBeCalledTimes(2);
 	expect(openInDefaultApp).toBeCalledTimes(2);
+});
+
+// test('should remove old files from storage folder', async () => {
+// 	mockedFs.readdir.mockReturnValue(fsReadDirMockReturnValue);
+// 	fsStatsMockReturnValue.forEach((returnValue) =>
+// 		mockedFs.stat.mockReturnValueOnce(returnValue)
+// 	);
+
+// 	expect(await freeStorageSpace()).toBeUndefined();
+
+// 	expect(mockedFs.readdir).toBeCalledTimes(3);
+// 	expect(mockedFs.stat).toBeCalledTimes(9);
+// 	expect(mockedFs.rm).toBeCalled();
+
+// 	// mockedFs.readdir.mockRejectedValueOnce(new Error('Mock reject error.'));
+// 	// expect(await freeStorageSpace()).toBeUndefined();
+// });
+
+test('should return directory type', () => {
+	expect(
+		getDirType({
+			isDirectory: () => true,
+			isFile: () => false
+		} as Stats)
+	).toBe('folder');
+
+	expect(
+		getDirType({
+			isDirectory: () => false,
+			isFile: () => true
+		} as Stats)
+	).toBe('file');
+
+	expect(
+		getDirType({
+			isDirectory: () => true,
+			isFile: () => true
+		} as Stats)
+	).toBe('folder');
+
+	expect(
+		getDirType({
+			isDirectory: () => false,
+			isFile: () => false
+		} as Stats)
+	).toBe('*other type');
+});
+
+test('should check if the file is old enough to be deleted', async () => {
+	mockedFs.stat.mockReset();
+
+	fsStatsMockReturnValue.forEach((returnValue) =>
+		mockedFs.stat.mockReturnValueOnce(returnValue)
+	);
+	let [shouldRemove, stats] = await checkIfDirShouldBeRemoved(
+		examplePath,
+		now - DAY_IN_MS
+	);
+	expect(shouldRemove).toBe(false);
+	expect(stats).toMatchObject(fsStatsMockReturnValue[0]);
+
+	[shouldRemove, stats] = await checkIfDirShouldBeRemoved(
+		examplePath,
+		now - HOUR_IN_MS
+	);
+	expect(shouldRemove).toBe(false);
+	expect(stats).toMatchObject(fsStatsMockReturnValue[1]);
+
+	[shouldRemove, stats] = await checkIfDirShouldBeRemoved(
+		examplePath,
+		now - MINUTE_IN_MS
+	);
+	expect(shouldRemove).toBe(true);
+	expect(stats).toMatchObject(fsStatsMockReturnValue[2]);
+});
+
+test('should remove old directories from storage', async () => {
+	console.log(await fsStatsMockReturnValue[0]);
+	mockedFs.stat.mockReset();
+	fsStatsMockReturnValue.map((returnValue) => {
+		return mockedFs.stat.mockReturnValueOnce(returnValue);
+	});
+	const oldestTime = (await fsStatsMockReturnValue[0]).ctimeMs + 1;
+	let removeInfo = await removeOldDir(exampleName, examplePath, oldestTime);
+
+	expect(removeInfo).toMatchObject([true, true, path.normalize(examplePathName)]);
 });

@@ -184,18 +184,20 @@ export async function saveSettings(settings: Settings) {
 	}
 }
 
-export async function freeStorageSpace() {
+export async function freeStorageSpace(
+	olderThenTime: number = Date.now() -
+		(config.isDev ? MINUTE_IN_MS * 20 : DAY_IN_MS * 2)
+) {
 	let logTxt = '';
 	let logErrorText = '';
 	let currentLogTxt: string;
 	let currentLogErrorText: string;
-	const time = Date.now() - (config.isDev ? MINUTE_IN_MS * 20 : DAY_IN_MS * 2);
 	consoleLog(
 		'Will remove files created before: ',
-		new Date(time).toLocaleString('en-US')
+		new Date(olderThenTime).toLocaleString('en-US')
 	);
 
-	// @todo: remove the old default wallpapers if exists mb if changed? 
+	// @todo: remove the old default wallpapers if exists mb if changed?
 	// probably should be done when copy new one on settings setup
 	const promises = ([
 		'images/wallpaper',
@@ -204,7 +206,7 @@ export async function freeStorageSpace() {
 	] as Array<StorageDirectories>).map(async (storageDirName) => {
 		[currentLogTxt, currentLogErrorText] = await removeOldDirsInStorageSubdirectory(
 			storageDirName,
-			time
+			olderThenTime
 		);
 		logTxt += currentLogTxt;
 		logErrorText += currentLogErrorText;
@@ -290,7 +292,7 @@ export async function removeOldDir(
 	}
 }
 
-async function checkIfDirShouldBeRemoved(
+export async function checkIfDirShouldBeRemoved(
 	dirPath: string,
 	oldestCreateTime: number
 ): Promise<[boolean, Stats]> {
@@ -301,7 +303,7 @@ async function checkIfDirShouldBeRemoved(
 	return [false, dirStat];
 }
 
-function getDirType(dirStat: Stats) {
+export function getDirType(dirStat: Stats) {
 	if (dirStat.isDirectory()) {
 		return 'folder';
 	}
