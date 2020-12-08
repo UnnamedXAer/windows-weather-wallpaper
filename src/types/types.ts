@@ -10,6 +10,14 @@ export interface Config {
 	trackLocationChanges: boolean;
 }
 
+export type StorageDirectories =
+	| 'logs'
+	| 'test-data'
+	| 'images/weather'
+	| 'images/default-wallpaper'
+	| 'images/wallpaper'
+	| 'settings';
+
 export interface Geolocation {
 	city: string;
 	country: string;

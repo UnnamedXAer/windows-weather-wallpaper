@@ -5,10 +5,11 @@ import Jimp from 'jimp';
 import findNextFileName from 'find-next-file-name';
 import consoleLog from './utils/consoleLogger';
 import { formatDate } from './utils/formatDate';
-import { Settings } from './types/types';
+import { Settings, StorageDirectories } from './types/types';
 import { config } from './config';
-import { PathLike } from 'fs';
+import { PathLike, Stats } from 'fs';
 import { openInDefaultApp } from './processes';
+import { DAY_IN_MS, DEFAULT_WALLPAPER_NAME_PREFIX, MINUTE_IN_MS } from './constants';
 
 export async function ensurePathExists(dir: PathLike) {
 	try {
@@ -22,13 +23,7 @@ export async function ensurePathExists(dir: PathLike) {
 }
 
 export async function getStoragePath(
-	resourceName:
-		| 'logs'
-		| 'test-data'
-		| 'images/weather'
-		| 'images/default-wallpaper'
-		| 'images/wallpaper'
-		| 'settings',
+	resourceName: StorageDirectories,
 	fileName?: string
 ) {
 	let resourcePath = path.join(__dirname, 'storage', config.envPrefix, resourceName);
@@ -90,9 +85,17 @@ export async function saveAndOpenLog(description: string, err?: Error) {
 	}
 	try {
 		const logPath = await saveLog(text, err ? 'error' : 'default');
-		await openInDefaultApp(logPath);
+		await openLog(logPath);
 	} catch (err) {
-		consoleLog('Unable to create or open log.');
+		return consoleLog('Unable to create log.');
+	}
+}
+
+export async function openLog(logPath: PathLike) {
+	try {
+		return await openInDefaultApp(logPath);
+	} catch (err) {
+		consoleLog(`Unable to open the log file. "${logPath}"`);
 	}
 }
 
@@ -112,7 +115,7 @@ export async function saveDefaultWallpaperCopy(settings: Settings) {
 
 export async function makeDefaultWallpaperCopy(defaultWallpaperPath: string) {
 	const defaultWallpaperName = path.basename(defaultWallpaperPath);
-	const wallpaperCopyName = 'def-wallpaper-' + defaultWallpaperName;
+	const wallpaperCopyName = DEFAULT_WALLPAPER_NAME_PREFIX + defaultWallpaperName;
 	const wallpaperCopyPath = await getStoragePath('images/default-wallpaper');
 	const wallpaperCopyPathName = path.join(wallpaperCopyPath, wallpaperCopyName);
 	try {
@@ -124,11 +127,12 @@ export async function makeDefaultWallpaperCopy(defaultWallpaperPath: string) {
 	}
 	try {
 		await ensurePathExists(wallpaperCopyPath);
+		// @todo: remove old ones if exists
 		await copyFile(defaultWallpaperPath, wallpaperCopyPathName);
 		consoleLog('Copy of the wallpaper created.');
 		return wallpaperCopyPathName;
 	} catch (err) {
-		consoleLog('Unable to create copy of default wallpaper.', err);
+		consoleLog('Unable to create copy of the default wallpaper.', err);
 		throw err;
 	}
 }
@@ -138,14 +142,14 @@ export async function updateWallpaperSize(settings: Settings) {
 	try {
 		if (settings.wallpaperCopyPath === null) {
 			throw new Error(
-				'Unable to update wallpaper size - missing wallpaper copy path.'
+				'Unable to update the wallpaper size - missing wallpaper copy path.'
 			);
 		}
 		const wallpaperImg = await Jimp.read(settings.wallpaperCopyPath);
 		wallpaperSize.width = wallpaperImg.getWidth();
 		wallpaperSize.height = wallpaperImg.getHeight();
 	} catch (err) {
-		consoleLog('Unable to update wallpaper size.');
+		consoleLog('Unable to update the wallpaper size.');
 	}
 	settings.wallpaperSize = wallpaperSize;
 	return settings;
@@ -160,7 +164,7 @@ export async function readSettings() {
 
 		return settings;
 	} catch (err) {
-		consoleLog('Unable to get settings.', err);
+		consoleLog('Unable to get the settings.', err);
 		return null;
 	}
 }
@@ -175,7 +179,134 @@ export async function saveSettings(settings: Settings) {
 		await fs.writeFile(filePath, fileContent);
 		return updatedSettings;
 	} catch (err) {
-		consoleLog('Unable to set settings.', err);
+		consoleLog('Unable to set the settings.', err);
 		return null;
 	}
+}
+
+export async function freeStorageSpace() {
+	let logTxt = '';
+	let logErrorText = '';
+	let currentLogTxt: string;
+	let currentLogErrorText: string;
+	const time = Date.now() - (config.isDev ? MINUTE_IN_MS * 20 : DAY_IN_MS * 2);
+	consoleLog(
+		'Will remove files created before: ',
+		new Date(time).toLocaleString('en-US')
+	);
+
+	// @todo: remove the old default wallpapers if exists mb if changed? 
+	// probably should be done when copy new one on settings setup
+	const promises = ([
+		'images/wallpaper',
+		'images/weather',
+		'logs'
+	] as Array<StorageDirectories>).map(async (storageDirName) => {
+		[currentLogTxt, currentLogErrorText] = await removeOldDirsInStorageSubdirectory(
+			storageDirName,
+			time
+		);
+		logTxt += currentLogTxt;
+		logErrorText += currentLogErrorText;
+	});
+
+	await Promise.all(promises);
+
+	if (logErrorText !== '') {
+		saveAndOpenLog(
+			'\n' + logErrorText,
+			new Error('Fail to remove some of the directories.')
+		).catch(() => {
+			/* nothing to do here */
+		});
+	}
+	if (logTxt) {
+		saveLog(
+			'\nFreeing storage space summary\nThe following files have been deleted:' +
+				logTxt
+		).catch(() => {
+			/* nothing to do here */
+		});
+	}
+}
+
+export async function removeOldDirsInStorageSubdirectory(
+	dirName: StorageDirectories,
+	time: number
+): Promise<[logText: string, logErrorText: string]> {
+	let logTxt = '';
+	let logErrorText = '';
+	const storageDirPath = await getStoragePath(dirName);
+	const dirs = await fs.readdir(storageDirPath);
+	for (let len = dirs.length, i = 0; i < len; i++) {
+		const [success, removed, dirPath] = await removeOldDir(
+			dirs[i],
+			storageDirPath,
+			time
+		);
+		if (!success) {
+			logErrorText += '\n' + dirPath;
+			continue;
+		}
+		if (removed) {
+			logTxt += '\n' + dirPath;
+			continue;
+		}
+	}
+
+	return [logTxt, logErrorText];
+}
+
+export async function removeOldDir(
+	dirName: string,
+	sourceDir: string,
+	olderThen: number
+): Promise<[success: boolean, removed: boolean, dirPath: string]> {
+	const dirPath = path.join(sourceDir, dirName);
+	let dirType: string;
+	try {
+		const [shouldRemove, dirStat] = await checkIfDirShouldBeRemoved(
+			dirPath,
+			olderThen
+		);
+		if (shouldRemove === false) {
+			return [true, false, dirPath];
+		}
+
+		dirType = getDirType(dirStat);
+
+		if (dirType === '*other type') {
+			throw new Error(
+				`Deletion skipped, the directory is neither a file nor a folder. (${dirPath})`
+			);
+		}
+		consoleLog(`About to delete ${dirType}: "${dirPath}"`);
+		await fs.rm(dirPath, { recursive: true });
+		consoleLog(`The "${dirName}" ${dirType} removed.`);
+		return [true, true, dirPath];
+	} catch (err) {
+		consoleLog(`Fail to remove directory: "${dirPath}`, err);
+		return [false, false, dirPath];
+	}
+}
+
+async function checkIfDirShouldBeRemoved(
+	dirPath: string,
+	oldestCreateTime: number
+): Promise<[boolean, Stats]> {
+	const dirStat = await fs.stat(dirPath);
+	if (dirStat.ctimeMs < oldestCreateTime) {
+		return [true, dirStat];
+	}
+	return [false, dirStat];
+}
+
+function getDirType(dirStat: Stats) {
+	if (dirStat.isDirectory()) {
+		return 'folder';
+	}
+	if (dirStat.isFile()) {
+		return 'file';
+	}
+	return '*other type';
 }

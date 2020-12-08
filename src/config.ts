@@ -1,5 +1,4 @@
 import { Config, NODE_ENV } from './types/types';
-import consoleLog from './utils/consoleLogger';
 import { getEnvPrefix } from './utils/envPrefix';
 
 export const config: Config = {

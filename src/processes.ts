@@ -1,7 +1,8 @@
 import { exec } from 'child_process';
+import { PathLike } from 'fs';
 import consoleLog from './utils/consoleLogger';
 
-export async function openInDefaultApp(filePath: string) {
+export async function openInDefaultApp(filePath: PathLike) {
 	try {
 		const subprocess = exec('start "" "' + filePath + '"');
 		consoleLog('Spawned subprocess #', subprocess.pid, filePath);

@@ -1,10 +1,16 @@
 import { fetchMyGeolocation } from './api';
-import { readSettings, saveDefaultWallpaperCopy, saveSettings, updateWallpaperSize } from './files';
+import {
+	readSettings,
+	saveDefaultWallpaperCopy,
+	saveSettings,
+	updateWallpaperSize
+} from './files';
 import consoleLog from './utils/consoleLogger';
 import { Settings } from './types/types';
 import { config } from './config';
 
 export async function setupSettings() {
+	consoleLog('About to setup settings.');
 	let savedSettings = await readSettings();
 	let settings: Settings;
 	if (savedSettings !== null) {
@@ -25,7 +31,7 @@ export async function setupSettings() {
 	}
 
 	settings = await saveDefaultWallpaperCopy(settings);
-	
+
 	if (settings.wallpaperSize === null) {
 		settings = await updateWallpaperSize(settings);
 	}
