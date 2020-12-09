@@ -16,6 +16,9 @@ function run() {
 		consoleLog('Config:', config);
 	})()
 		.then(() => {
+			return validateEnvParams();
+		})
+		.then(() => {
 			// there is not need to wait for this.
 			freeStorageSpace().then(() => consoleLog('Storage cleared.'));
 		})

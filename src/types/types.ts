@@ -1,5 +1,5 @@
 export type NODE_ENV = 'production' | 'development' | 'test';
-export type EnvPrefix = 'test' | 'dev' | 'prod'
+export type EnvPrefix = 'test' | 'dev' | 'prod';
 export interface Config {
 	NODE_ENV: NODE_ENV;
 	isDev: boolean;
@@ -7,7 +7,7 @@ export interface Config {
 	console_logs: boolean;
 	locationApiUrl: string;
 	weatherApiUrl: string;
-	defaultWallpaperPath: string;
+	defaultWallpaperPath: string | null;
 	trackLocationChanges: boolean;
 }
 
@@ -63,15 +63,6 @@ export interface WeatherData {
 
 export interface CurrentWeather {
 	weatherData: WeatherData & {
-		// imgName: string;
-		// temperature: Temperature;
-		// pressure: number;
-		// humidity: number;
-		// wind: Wind;
-		// time: number;
-		// clouds: number;
-		// description: string;
-		// shortDescription: string;
 		dt: number;
 		sunrise: number;
 		sunset: number;
