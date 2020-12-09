@@ -1,8 +1,9 @@
 export type NODE_ENV = 'production' | 'development' | 'test';
+export type EnvPrefix = 'test' | 'dev' | 'prod'
 export interface Config {
 	NODE_ENV: NODE_ENV;
 	isDev: boolean;
-	envPrefix: 'test' | 'dev' | 'prod';
+	envPrefix: EnvPrefix;
 	console_logs: boolean;
 	locationApiUrl: string;
 	weatherApiUrl: string;

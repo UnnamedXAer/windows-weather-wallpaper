@@ -14,6 +14,7 @@ import {
 	makeDefaultWallpaperCopy,
 	readSettings,
 	removeOldDir,
+	removeOldDirsInStorageSubdirectory,
 	saveAndOpenLog,
 	saveDefaultWallpaperCopy,
 	saveLog,
@@ -29,7 +30,8 @@ import {
 	MINUTE_IN_MS
 } from '../constants';
 import { formatDate } from '../utils/formatDate';
-import { Stats } from 'fs';
+import { Stats, Dirent } from 'fs';
+import { config } from '../config';
 
 jest.mock('../processes');
 jest.mock('wallpaper');
@@ -48,15 +50,15 @@ const DEFAULT_SETTINGS: Settings = {
 	wallpaperSize: null
 };
 
+const now = Date.now();
 const exampleName = 'waterfall.png';
 const examplePath = 'X://my-wallpapers';
 const examplePathName = `${examplePath}/${exampleName}`;
 
+// @thought: I think that if these mocked values were more thoughtful then the tests will not be so messy.
 const fsReadDirMockReturnValue = Promise.resolve(
 	new Array(3).fill('').map((_, idx) => `wallpaper-${formatDate()} (${idx}).jpg`)
 ) as Promise<any[]>;
-
-const now = Date.now();
 
 const fsStatsMockReturnValue = Array(3)
 	.fill(1)
@@ -136,8 +138,16 @@ test('should copy file', async () => {
 
 test('should return path and name of the settings file', async () => {
 	const { settingsFileName, settingsPath } = await getSettingsPath();
-	expect(settingsFileName).toMatch(/pc[.]test-settings[.]json$/);
+	expect(settingsFileName).toMatch('pc.test-settings.json');
 	expect(settingsPath).toMatch(/\\src\\storage\\test\\settings$/);
+
+	const prefix = config.envPrefix;
+	config.envPrefix = 'prod';
+	const settingsFileInfo = await getSettingsPath();
+	expect(settingsFileInfo.settingsFileName).toBe('pc.settings.json');
+	expect(settingsFileInfo.settingsPath).toMatch(/\\src\\storage\\prod\\settings$/);
+
+	config.envPrefix = prefix;
 });
 
 test('should write text to log file and return path base on type parameter.', async () => {
@@ -259,21 +269,41 @@ test('should write text to log file and open it.', async () => {
 	expect(openInDefaultApp).toBeCalledTimes(2);
 });
 
-// test('should remove old files from storage folder', async () => {
-// 	mockedFs.readdir.mockReturnValue(fsReadDirMockReturnValue);
-// 	fsStatsMockReturnValue.forEach((returnValue) =>
-// 		mockedFs.stat.mockReturnValueOnce(returnValue)
-// 	);
+test('should remove old files from storage folder', async () => {
+	mockedFs.readdir.mockReset();
+	mockedFs.readdir.mockResolvedValue([] as Dirent[]);
 
-// 	expect(await freeStorageSpace()).toBeUndefined();
+	await freeStorageSpace();
+	expect(mockedFs.writeFile).toBeCalledTimes(0);
 
-// 	expect(mockedFs.readdir).toBeCalledTimes(3);
-// 	expect(mockedFs.stat).toBeCalledTimes(9);
-// 	expect(mockedFs.rm).toBeCalled();
+	mockedFs.readdir.mockReset();
+	mockedFs.readdir.mockReturnValue(fsReadDirMockReturnValue);
 
-// 	// mockedFs.readdir.mockRejectedValueOnce(new Error('Mock reject error.'));
-// 	// expect(await freeStorageSpace()).toBeUndefined();
-// });
+	mockedFs.stat.mockReset();
+	fsStatsMockReturnValue.map((returnValue) => {
+		return mockedFs.stat.mockReturnValueOnce(returnValue);
+	});
+
+	expect(await freeStorageSpace()).toBeUndefined();
+
+	expect(mockedFs.readdir).toBeCalledTimes(3);
+
+	mockedFs.readdir.mockRejectedValueOnce(new Error('Mock reject error.'));
+	expect(await freeStorageSpace()).toBeUndefined();
+	expect(mockedFs.writeFile).toBeCalled();
+
+	mockedFs.stat.mockResolvedValueOnce({
+		atimeMs: 100000,
+		ctimeMs: 100000,
+		mtimeMs: 100000,
+		isDirectory: () => true && true,
+		isFile: () => false
+	} as Stats);
+	mockedFs.writeFile.mockReset();
+	config.isDev = false;
+	await freeStorageSpace();
+	expect(mockedFs.writeFile).toBeCalledTimes(2);
+});
 
 test('should return directory type', () => {
 	expect(
@@ -334,13 +364,79 @@ test('should check if the file is old enough to be deleted', async () => {
 });
 
 test('should remove old directories from storage', async () => {
-	console.log(await fsStatsMockReturnValue[0]);
 	mockedFs.stat.mockReset();
 	fsStatsMockReturnValue.map((returnValue) => {
 		return mockedFs.stat.mockReturnValueOnce(returnValue);
 	});
-	const oldestTime = (await fsStatsMockReturnValue[0]).ctimeMs + 1;
+	let oldestTime = (await fsStatsMockReturnValue[0]).ctimeMs + 1;
 	let removeInfo = await removeOldDir(exampleName, examplePath, oldestTime);
-
 	expect(removeInfo).toMatchObject([true, true, path.normalize(examplePathName)]);
+
+	oldestTime = (await fsStatsMockReturnValue[1]).ctimeMs - 1;
+	removeInfo = await removeOldDir(exampleName, examplePath, oldestTime);
+	expect(removeInfo).toMatchObject([true, false, path.normalize(examplePathName)]);
+
+	mockedFs.rm.mockRejectedValueOnce(new Error('No file error mock.'));
+	oldestTime = (await fsStatsMockReturnValue[2]).ctimeMs - 1;
+	removeInfo = await removeOldDir(exampleName, examplePath, oldestTime);
+	expect(removeInfo).toMatchObject([true, false, path.normalize(examplePathName)]);
+
+	mockedFs.rm.mockRejectedValueOnce(new Error('No file error mock.'));
+	oldestTime = (await fsStatsMockReturnValue[3]).ctimeMs + 1;
+	removeInfo = await removeOldDir(exampleName, examplePath, oldestTime);
+	expect(removeInfo).toMatchObject([false, false, path.normalize(examplePathName)]);
+});
+
+test('should remove the old dirs in the given storage folder.', async () => {
+	mockedFs.stat.mockReset();
+	fsStatsMockReturnValue.map((returnValue) => {
+		return mockedFs.stat.mockReturnValueOnce(returnValue);
+	});
+	mockedFs.readdir.mockReset();
+	mockedFs.readdir.mockReturnValue(fsReadDirMockReturnValue);
+	fsStatsMockReturnValue.forEach((returnValue) =>
+		mockedFs.stat.mockReturnValueOnce(returnValue)
+	);
+
+	mockedFs.rm.mockReset();
+	mockedFs.rm.mockResolvedValue();
+
+	let oldestTime = (await fsStatsMockReturnValue[0]).ctimeMs + 1;
+	let logs = await removeOldDirsInStorageSubdirectory('images/wallpaper', oldestTime);
+	let regExpTxt = (await fsReadDirMockReturnValue)
+		.map((dir) => {
+			return `\\n.+${dir}`;
+		})
+		.join('')
+		.replace(/\\n/g, '\\n')
+		.replace(/[(]/g, '\\(')
+		.replace(/[)]/g, '\\)');
+	expect(logs[0]).toMatch(new RegExp(regExpTxt));
+	expect(logs[1]).toBe('');
+
+	mockedFs.stat.mockReset();
+	fsStatsMockReturnValue.map((returnValue) => {
+		return mockedFs.stat.mockReturnValueOnce(returnValue);
+	});
+	mockedFs.rm.mockRejectedValueOnce(new Error('No file mock error.'));
+	logs = await removeOldDirsInStorageSubdirectory('images/wallpaper', oldestTime);
+	regExpTxt = (await fsReadDirMockReturnValue)
+		.map((dir, idx) => {
+			if (idx === 0) return '';
+			return `\\n.+${dir}`;
+		})
+		.join('')
+		.replace(/\\n/g, '\\n')
+		.replace(/[(]/g, '\\(')
+		.replace(/[)]/g, '\\)');
+
+	expect(logs[0]).toMatch(new RegExp(regExpTxt));
+	expect(logs[1]).not.toBe('');
+
+	mockedFs.readdir.mockRejectedValue(new Error('Could not read dir / mock error.'));
+	logs = await removeOldDirsInStorageSubdirectory('images/wallpaper', oldestTime);
+	expect(logs[0]).toBe('');
+	expect(logs[1]).toMatch(
+		new RegExp('\nDir: images/wallpaper Error:\nCould not read dir / mock error.')
+	);
 });

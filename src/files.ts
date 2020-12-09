@@ -184,10 +184,9 @@ export async function saveSettings(settings: Settings) {
 	}
 }
 
-export async function freeStorageSpace(
-	olderThenTime: number = Date.now() -
-		(config.isDev ? MINUTE_IN_MS * 20 : DAY_IN_MS * 2)
-) {
+export async function freeStorageSpace() {
+	const olderThenTime: number =
+		Date.now() - (config.isDev ? MINUTE_IN_MS * 20 : DAY_IN_MS * 2);
 	let logTxt = '';
 	let logErrorText = '';
 	let currentLogTxt: string;
@@ -215,20 +214,25 @@ export async function freeStorageSpace(
 	await Promise.all(promises);
 
 	if (logErrorText !== '') {
-		saveAndOpenLog(
-			'\n' + logErrorText,
-			new Error('Fail to remove some of the directories.')
-		).catch(() => {
-			/* nothing to do here */
-		});
+		try {
+			await saveAndOpenLog(
+				'\n' + logErrorText,
+				new Error('Fail to remove some of the directories.')
+			);
+		} catch (err) {
+			//
+		}
 	}
-	if (logTxt) {
-		saveLog(
-			'\nFreeing storage space summary\nThe following files have been deleted:' +
-				logTxt
-		).catch(() => {
-			/* nothing to do here */
-		});
+
+	if (logTxt !== '') {
+		try {
+			await saveLog(
+				'\nFreeing storage space summary\nThe following files have been deleted:' +
+					logTxt
+			);
+		} catch (err) {
+			//
+		}
 	}
 }
 
@@ -239,23 +243,26 @@ export async function removeOldDirsInStorageSubdirectory(
 	let logTxt = '';
 	let logErrorText = '';
 	const storageDirPath = await getStoragePath(dirName);
-	const dirs = await fs.readdir(storageDirPath);
-	for (let len = dirs.length, i = 0; i < len; i++) {
-		const [success, removed, dirPath] = await removeOldDir(
-			dirs[i],
-			storageDirPath,
-			time
-		);
-		if (!success) {
-			logErrorText += '\n' + dirPath;
-			continue;
+	try {
+		const dirs = await fs.readdir(storageDirPath);
+		for (let len = dirs.length, i = 0; i < len; i++) {
+			const [success, removed, dirPath] = await removeOldDir(
+				dirs[i],
+				storageDirPath,
+				time
+			);
+			if (!success) {
+				logErrorText += '\n' + dirPath;
+				continue;
+			}
+			if (removed) {
+				logTxt += '\n' + dirPath;
+				continue;
+			}
 		}
-		if (removed) {
-			logTxt += '\n' + dirPath;
-			continue;
-		}
+	} catch (err) {
+		logErrorText += `\nDir: ${dirName} Error:\n${err.message}`;
 	}
-
 	return [logTxt, logErrorText];
 }
 

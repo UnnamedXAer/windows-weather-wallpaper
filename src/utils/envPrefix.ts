@@ -1,4 +1,6 @@
-export function getEnvPrefix() {
+import { EnvPrefix } from '../types/types';
+
+export function getEnvPrefix(): EnvPrefix {
 	if (process.env.NODE_ENV === 'production') {
 		return 'prod';
 	}
