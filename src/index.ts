@@ -8,8 +8,13 @@ import { IMPORTANT_ERROR } from './eventsTypes';
 import { config } from './config';
 import { freeStorageSpace, saveAndOpenLog } from './files';
 import { HOUR_IN_MS } from './constants';
+import { validateEnvParams } from './utils/validateEnvParams';
 
 let runsCnt = 0;
+// @improvement: read timeout from env or args.
+// let timeout = 1000 * 15;
+let timeout = HOUR_IN_MS * 3;
+
 function run() {
 	return (async () => {
 		consoleLog('\n\n\t\t\t\t', { 'START, run number': ++runsCnt }, '\n');
@@ -36,9 +41,7 @@ function run() {
 			if (process.argv.includes('run-once')) {
 				return;
 			}
-			let timeout = 1000 * 15;
-			// const timeout = HOUR_IN_MS * 3;
-			// @improvement: read timeout from env or args.
+
 			if (config.isDev === false && timeout < HOUR_IN_MS) {
 				saveAndOpenLog(
 					`
