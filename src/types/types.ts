@@ -43,7 +43,6 @@ export interface Wind {
 }
 
 export interface WeatherLocation {
-	id: number;
 	city: string;
 	latitude: number;
 	longitude: number;

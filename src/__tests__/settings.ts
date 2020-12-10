@@ -70,7 +70,6 @@ test('should merge given settings with old one and save them', async () => {
 });
 
 test('should setup the settings', async () => {
-	console.log('-debug');
 	let settings = await setupSettings();
 
 	expect(settings).toMatchObject({
@@ -87,11 +86,39 @@ test('should setup the settings', async () => {
 			...defaultSettings,
 			defaultWallpaperPath: exampleDefaultWallpaperPath,
 			wallpaperCopyPath: exampleDefaultWallpaperPath + 'j',
-			wallpaperSize: { width: 200, height: 200 }
+			wallpaperSize: { width: 200, height: 200 },
+			location: {}
 		} as Settings)
 	);
 
 	settings = await setupSettings();
+
+	expect(settings).toMatchObject({
+		...defaultSettings,
+		dt: expect.any(String),
+		defaultWallpaperPath: exampleDefaultWallpaperPath,
+		wallpaperCopyPath: expect.any(String),
+		wallpaperSize: expect.any(Object),
+		location: expect.any(Object)
+	});
+
+	const configDefaultWallpaper = config.defaultWallpaperPath;
+	config.defaultWallpaperPath = exampleDefaultWallpaperPath;
+	const configTrackLocationChanges = config.trackLocationChanges;
+	config.trackLocationChanges = !configTrackLocationChanges;
+	mockedFs.readFile.mockResolvedValueOnce(
+		JSON.stringify({
+			...defaultSettings,
+			defaultWallpaperPath: exampleDefaultWallpaperPath,
+			wallpaperCopyPath: exampleDefaultWallpaperPath + 'j',
+			wallpaperSize: { width: 200, height: 200 },
+			location: {}
+		} as Settings)
+	);
+
+	settings = await setupSettings();
+	config.defaultWallpaperPath = configDefaultWallpaper;
+	config.trackLocationChanges = configTrackLocationChanges;
 
 	expect(settings).toMatchObject({
 		...defaultSettings,
@@ -119,9 +146,6 @@ test('should setup the settings', async () => {
 
 	mockedFs.writeFile.mockRejectedValue('Missing permissions / Mock error');
 	settings = await setupSettings();
-	// const configDefaultWallpaper = config.defaultWallpaperPath;
-	// config.defaultWallpaperPath = exampleDefaultWallpaperPath;
-	// config.defaultWallpaperPath = configDefaultWallpaper;
 
 	expect(settings).not.toBeNull();
 });

@@ -18,6 +18,20 @@
 			"disableOptimisticBPs": true
 		},
 		{
+			"type": "node",
+			"name": "vscode-jest-tests specific test",
+			"request": "launch",
+			"program": "${workspaceFolder}/node_modules/jest/bin/jest",
+			"args": [
+				"--testNamePattern=",
+				"--runInBand"
+			],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen",
+			"disableOptimisticBPs": true
+		},
+		{
 			"name": "Launch with ts-node",
 			"type": "node",
 			"request": "launch",
