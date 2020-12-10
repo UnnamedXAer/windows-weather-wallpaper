@@ -126,8 +126,8 @@ export async function makeDefaultWallpaperCopy(defaultWallpaperPath: string) {
 		/* do nothing */
 	}
 	try {
+		await fs.rm(wallpaperCopyPath, { recursive: true, force: true });
 		await ensurePathExists(wallpaperCopyPath);
-		// @todo: remove old ones if exists
 		await copyFile(defaultWallpaperPath, wallpaperCopyPathName);
 		consoleLog('Copy of the wallpaper created.');
 		return wallpaperCopyPathName;
