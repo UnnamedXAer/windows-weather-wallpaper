@@ -15,7 +15,7 @@ emitter.on(IMPORTANT_ERROR, async (description: string, err: Error) => {
 	} catch (err) {}
 	setTimeout(() => {
 		process.exit(1);
-	}, 200);
+	}, 1000);
 });
 
 export default emitter;
