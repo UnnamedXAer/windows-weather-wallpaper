@@ -1,11 +1,11 @@
 {
-	"name": "windows-weather-wallpaper",
+	"name": "wwwupdater",
 	"version": "1.0.0",
 	"description": "The tool that sets periodically new wallpaper with current weather.",
 	"main": "dist/index.js",
 	"scripts": {
 		"test": "yarn build && jest",
-		"start": "set NODE_ENV=production&& npm run build && node dist/index.js",
+		"start": "set NODE_ENV=production&& yarn run build && node dist/index.js",
 		"start-dev": "ts-node src/index.ts",
 		"build": "tsc"
 	},
@@ -23,7 +23,8 @@
 		"find-next-file-name": "^1.0.1",
 		"jimp": "^0.16.1",
 		"node-html-to-image": "^3.1.0",
-		"wallpaper": "^4.4.2"
+		"wallpaper": "^4.4.2",
+		"windows-api-show-window": "^0.2.0"
 	},
 	"devDependencies": {
 		"@types/jest": "^26.0.16",
