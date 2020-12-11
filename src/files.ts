@@ -239,7 +239,7 @@ export async function freeStorageSpace() {
 export async function removeOldDirsInStorageSubdirectory(
 	dirName: StorageDirectories,
 	time: number
-): Promise<[logText: string, logErrorText: string]> {
+): Promise<[string, string]> {
 	let logTxt = '';
 	let logErrorText = '';
 	const storageDirPath = await getStoragePath(dirName);
@@ -270,7 +270,7 @@ export async function removeOldDir(
 	dirName: string,
 	sourceDir: string,
 	olderThen: number
-): Promise<[success: boolean, removed: boolean, dirPath: string]> {
+): Promise<[boolean, boolean, string]> {
 	const dirPath = path.join(sourceDir, dirName);
 	let dirType: string;
 	try {
