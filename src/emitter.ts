@@ -9,8 +9,13 @@ emitter.on(NO_LOCATION, (description: string, err: Error) => {
 	consoleLog(description, err);
 });
 
-emitter.on(IMPORTANT_ERROR, (description: string, err: Error) => {
-	saveAndOpenLog(description, err);
+emitter.on(IMPORTANT_ERROR, async (description: string, err: Error) => {
+	try {
+		await saveAndOpenLog(description, err);
+	} catch (err) {}
+	setTimeout(() => {
+		process.exit(1);
+	}, 200);
 });
 
 export default emitter;

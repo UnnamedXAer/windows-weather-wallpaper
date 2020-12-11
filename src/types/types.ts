@@ -9,6 +9,7 @@ export interface Config {
 	weatherApiUrl: string;
 	defaultWallpaperPath: string | null;
 	trackLocationChanges: boolean;
+	appTemporaryDataFolder: string;
 }
 
 export type StorageDirectories =

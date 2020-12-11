@@ -22,7 +22,7 @@ import {
 	updateWallpaperSize
 } from '../files';
 import { openInDefaultApp } from '../processes';
-import { Settings } from '../types/types';
+import { NODE_ENV, Settings } from '../types/types';
 import {
 	DAY_IN_MS,
 	DEFAULT_WALLPAPER_NAME_PREFIX,
@@ -81,6 +81,13 @@ const fsStatsMockReturnValue = Array(3)
 		} as Stats)
 	);
 
+const getSettingsPathPattern = (envFolder: string = 'test') =>
+	new RegExp(
+		`${config.appTemporaryDataFolder.replace(/[\\]/g, '\\\\')}\\\\storage\\\\${envFolder}\\\\settings`
+	);
+
+const storagePathPathPatternString = `${config.appTemporaryDataFolder.replace(/[\\]/g, '\\\\')}\\\\storage\\\\test`;
+
 test('should create dir if not exists and return dir', async () => {
 	const existingPath = '../../src/__tests__';
 	const notExistingPath = '../../src/__tests__/very-not-existing-path2';
@@ -96,15 +103,15 @@ test('should create dir if not exists and return dir', async () => {
 });
 
 test('should return path to storage dir inside src with env prefix', async () => {
-	expect(await getStoragePath('settings')).toMatch(/.\\src\\storage\\test\\settings$/);
+	expect(await getStoragePath('settings')).toMatch(getSettingsPathPattern());
 	expect(await getStoragePath('images/default-wallpaper')).toMatch(
-		/.\\src\\storage\\test\\images\\default-wallpaper$/
+		new RegExp(storagePathPathPatternString + '\\\\images\\\\default-wallpaper$')
 	);
 	expect(await getStoragePath('images/wallpaper')).toMatch(
-		/.\\src\\storage\\test\\images\\wallpaper$/
+		new RegExp(storagePathPathPatternString + '\\\\images\\\\wallpaper$')
 	);
 	expect(await getStoragePath('images/weather')).toMatch(
-		/\\src\\storage\\test\\images\\weather$/
+		new RegExp(storagePathPathPatternString + '\\\\images\\\\weather$')
 	);
 	expect(await getStoragePath('test-data')).toMatch(/.\\src\\storage\\test-data$/);
 
@@ -139,13 +146,13 @@ test('should copy file', async () => {
 test('should return path and name of the settings file', async () => {
 	const { settingsFileName, settingsPath } = await getSettingsPath();
 	expect(settingsFileName).toMatch('pc.test-settings.json');
-	expect(settingsPath).toMatch(/\\src\\storage\\test\\settings$/);
+	expect(settingsPath).toMatch(getSettingsPathPattern());
 
 	const prefix = config.envPrefix;
 	config.envPrefix = 'prod';
 	const settingsFileInfo = await getSettingsPath();
 	expect(settingsFileInfo.settingsFileName).toBe('pc.settings.json');
-	expect(settingsFileInfo.settingsPath).toMatch(/\\src\\storage\\prod\\settings$/);
+	expect(settingsFileInfo.settingsPath).toMatch(getSettingsPathPattern('prod'));
 
 	config.envPrefix = prefix;
 });

@@ -26,7 +26,12 @@ export async function getStoragePath(
 	resourceName: StorageDirectories,
 	fileName?: string
 ) {
-	let resourcePath = path.join(__dirname, 'storage', config.envPrefix, resourceName);
+	let resourcePath = path.join(
+		config.appTemporaryDataFolder,
+		'storage',
+		config.envPrefix,
+		resourceName
+	);
 	if (resourceName === 'test-data') {
 		resourcePath = path.join(__dirname, 'storage', resourceName);
 	}
@@ -101,14 +106,21 @@ export async function openLog(logPath: PathLike) {
 
 export async function saveDefaultWallpaperCopy(settings: Settings) {
 	if (!settings.defaultWallpaperPath) {
-		const defaultWallpaperPath = await wallpaper.get();
-		settings.defaultWallpaperPath = defaultWallpaperPath;
+		try {
+			const defaultWallpaperPath = await wallpaper.get();
+			settings.defaultWallpaperPath = defaultWallpaperPath;
+		} catch (err) {
+			consoleLog('Fail to save a copy of your wallpaper.');
+			throw err;
+		}
 	}
 
-	const wallpaperCopyPath = await makeDefaultWallpaperCopy(
-		settings.defaultWallpaperPath
-	);
-	settings.wallpaperCopyPath = wallpaperCopyPath;
+	if (settings.defaultWallpaperPath) {
+		const wallpaperCopyPath = await makeDefaultWallpaperCopy(
+			settings.defaultWallpaperPath
+		);
+		settings.wallpaperCopyPath = wallpaperCopyPath;
+	}
 
 	return settings;
 }
@@ -126,6 +138,8 @@ export async function makeDefaultWallpaperCopy(defaultWallpaperPath: string) {
 		/* do nothing */
 	}
 	try {
+		// @refactor
+		// @though: it's not the most optimal way removing old files.
 		await fs.rm(wallpaperCopyPath, { recursive: true, force: true });
 		await ensurePathExists(wallpaperCopyPath);
 		await copyFile(defaultWallpaperPath, wallpaperCopyPathName);
