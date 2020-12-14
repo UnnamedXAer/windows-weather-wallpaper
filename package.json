@@ -5,6 +5,7 @@
 	"main": "dist/index.js",
 	"scripts": {
 		"test": "yarn build && jest",
+		"start-prod": "set NODE_ENV=production&& node dist/index.js",
 		"start": "set NODE_ENV=production&& yarn run build && node dist/index.js",
 		"start-dev": "ts-node src/index.ts",
 		"build": "tsc"

@@ -1,3 +1,3 @@
 echo %1
 cd %1
-yarn start
+yarn run start-prod
