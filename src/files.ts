@@ -210,8 +210,6 @@ export async function freeStorageSpace() {
 		new Date(olderThenTime).toLocaleString('en-US')
 	);
 
-	// @todo: remove the old default wallpapers if exists mb if changed?
-	// probably should be done when copy new one on settings setup
 	const promises = ([
 		'images/wallpaper',
 		'images/weather',

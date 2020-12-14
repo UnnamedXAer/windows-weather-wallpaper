@@ -15,7 +15,10 @@ export async function setupSettings() {
 	let settings: Settings;
 	if (savedSettings !== null) {
 		settings = savedSettings;
-		if (settings.defaultWallpaperPath !== config.defaultWallpaperPath) {
+		if (
+			config.defaultWallpaperPath !== null &&
+			settings.defaultWallpaperPath !== config.defaultWallpaperPath
+		) {
 			settings.defaultWallpaperPath = config.defaultWallpaperPath;
 			settings.wallpaperCopyPath = null;
 			settings.wallpaperSize = null;
