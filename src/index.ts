@@ -9,7 +9,6 @@ import emitter from './emitter';
 import { IMPORTANT_ERROR } from './eventsTypes';
 import { config } from './config';
 import { freeStorageSpace, saveAndOpenLog } from './files';
-import { HOUR_IN_MS } from './constants';
 import { validateEnvParams } from './utils/validateEnvParams';
 import { appendFile } from 'fs';
 import path from 'path';
