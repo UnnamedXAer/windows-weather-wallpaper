@@ -1,0 +1,1 @@
+PowerShell ./my_start_powershell_script.ps1
