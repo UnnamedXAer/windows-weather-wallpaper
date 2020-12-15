@@ -140,7 +140,7 @@ export async function makeDefaultWallpaperCopy(defaultWallpaperPath: string) {
 	try {
 		// @refactor
 		// @though: it's not the most optimal way removing old files.
-		await fs.rm(wallpaperCopyPath, { recursive: true, force: true });
+		await fs.rmdir(wallpaperCopyPath, { recursive: true /*, force: true */ });
 		await ensurePathExists(wallpaperCopyPath);
 		await copyFile(defaultWallpaperPath, wallpaperCopyPathName);
 		consoleLog('Copy of the wallpaper created.');
@@ -284,7 +284,6 @@ export async function removeOldDir(
 	olderThen: number
 ): Promise<[boolean, boolean, string]> {
 	const dirPath = path.join(sourceDir, dirName);
-	let dirType: string;
 	try {
 		const [shouldRemove, dirStat] = await checkIfDirShouldBeRemoved(
 			dirPath,
@@ -294,7 +293,7 @@ export async function removeOldDir(
 			return [true, false, dirPath];
 		}
 
-		dirType = getDirType(dirStat);
+		const dirType = getDirType(dirStat);
 
 		if (dirType === '*other type') {
 			throw new Error(
@@ -302,7 +301,7 @@ export async function removeOldDir(
 			);
 		}
 		consoleLog(`About to delete ${dirType}: "${dirPath}"`);
-		await fs.rm(dirPath, { recursive: true });
+		await fs[dirType === 'folder' ? 'rmdir' : 'unlink'](dirPath, { recursive: true });
 		consoleLog(`The "${dirName}" ${dirType} removed.`);
 		return [true, true, dirPath];
 	} catch (err) {

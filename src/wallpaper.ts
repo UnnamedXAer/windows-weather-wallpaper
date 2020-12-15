@@ -326,10 +326,10 @@ export async function saveWallpaper(image: Jimp) {
 	}
 }
 
-export function setWallpaper(wallpaperPath: string) {
+export async function setWallpaper(wallpaperPath: string) {
 	try {
 		consoleLog('About to set the new windows wallpaper.');
-		wallpaper.set(wallpaperPath);
+		await wallpaper.set(wallpaperPath);
 		consoleLog('The Wallpaper set.');
 	} catch (err) {
 		consoleLog('Fail to set wallpaper', err);

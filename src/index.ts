@@ -10,8 +10,6 @@ import { IMPORTANT_ERROR } from './eventsTypes';
 import { config } from './config';
 import { freeStorageSpace, saveAndOpenLog } from './files';
 import { validateEnvParams } from './utils/validateEnvParams';
-import { appendFile } from 'fs';
-import path from 'path';
 
 console.warn(
 	`The WindowsWeatherWallpaper is started.
@@ -44,14 +42,6 @@ function run() {
 		})
 		.finally(async () => {
 			consoleLog('all done');
-			const p = path.join(__dirname, '..', 'cnt.txt');
-			appendFile(p, '\n' + new Date().toLocaleString('en-US'), (err) => {
-				consoleLog(err);
-			});
-
-			setTimeout(() => {
-				console.info('keeper');
-			}, 15 * 1000);
 		});
 }
 
