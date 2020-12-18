@@ -88,7 +88,7 @@ const getSettingsPathPattern = (envFolder: string = 'test') =>
 
 const storagePathPathPatternString = `${config.appTemporaryDataFolder.replace(/[\\]/g, '\\\\')}\\\\storage\\\\test`;
 
-test('should create dir if not exists and return dir', async () => {
+test('should create a directory if not exists and return the path', async () => {
 	const existingPath = '../../src/__tests__';
 	const notExistingPath = '../../src/__tests__/very-not-existing-path2';
 
@@ -102,7 +102,7 @@ test('should create dir if not exists and return dir', async () => {
 	expect(fs.mkdir).toHaveBeenCalledTimes(1);
 });
 
-test('should return path to storage dir inside src with env prefix', async () => {
+test('should return the path to the storage directory with the env prefix', async () => {
 	expect(await getStoragePath('settings')).toMatch(getSettingsPathPattern());
 	expect(await getStoragePath('images/default-wallpaper')).toMatch(
 		new RegExp(storagePathPathPatternString + '\\\\images\\\\default-wallpaper$')
